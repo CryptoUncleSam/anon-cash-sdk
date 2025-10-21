@@ -107,6 +107,8 @@ export async function withdraw({ recipient, lightWasm, storage, publicKey, conne
     });
 
     const inputs = [firstInput, secondInput];
+    logger.debug(`firstInput index: ${firstInput.index}, commitment: ${firstInput.getCommitment()}`)
+    logger.debug(`secondInput index: ${secondInput.index}, commitment: ${secondInput.getCommitment()}`)
     const totalInputAmount = firstInput.amount.add(secondInput.amount);
     logger.debug(`Using UTXO with amount: ${firstInput.amount.toString()} and ${secondInput.amount.gt(new BN(0)) ? 'second UTXO with amount: ' + secondInput.amount.toString() : 'dummy UTXO'}`);
     if (totalInputAmount.toNumber() === 0) {
@@ -192,7 +194,8 @@ export async function withdraw({ recipient, lightWasm, storage, publicKey, conne
     await outputs[0].log();
     logger.debug(`\nOutput[1] (empty):`);
     await outputs[1].log();
-
+    logger.debug(`Encrypted output 1: ${encryptedOutput1.toString('hex')}`)
+    logger.debug(`Encrypted output 2: ${encryptedOutput2.toString('hex')}`)
     logger.debug(`\nEncrypted output 1 size: ${encryptedOutput1.length} bytes`);
     logger.debug(`Encrypted output 2 size: ${encryptedOutput2.length} bytes`);
     logger.debug(`Total encrypted outputs size: ${encryptedOutput1.length + encryptedOutput2.length} bytes`);
