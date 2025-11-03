@@ -62,6 +62,7 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
         getMyUtxosPromise = (async () => {
             let valid_utxos: Utxo[] = []
             let valid_strings: string[] = []
+            let history_indexes: number[] = []
             try {
                 let offsetStr = storage.getItem(LSK_FETCH_OFFSET + localstorageKey(publicKey))
                 if (offsetStr) {
@@ -81,6 +82,7 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
                     const nonZeroUtxos: Utxo[] = [];
                     const nonZeroEncrypted: any[] = [];
                     for (let [k, utxo] of fetched.utxos.entries()) {
+                        history_indexes.push(utxo.index)
                         if (utxo.amount.toNumber() > 0) {
                             nonZeroUtxos.push(utxo);
                             nonZeroEncrypted.push(fetched.encryptedOutputs[k]);
@@ -107,6 +109,21 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
                 throw e
             } finally {
                 getMyUtxosPromise = null
+            }
+            // get history index
+            let historyKey = 'tradeHistory' + localstorageKey(publicKey)
+            let rec = storage.getItem(historyKey)
+            let recIndexes: number[] = []
+            if (rec?.length) {
+                recIndexes = rec.split(',').map(n => Number(n))
+            }
+            if (recIndexes.length) {
+                history_indexes = [...history_indexes, ...recIndexes]
+            }
+            let unique_history_indexes = Array.from(new Set(history_indexes));
+            let top20 = unique_history_indexes.sort((a, b) => b - a).slice(0, 20);
+            if (top20.length) {
+                storage.setItem(historyKey, top20.join(','))
             }
             // store valid strings
             logger.debug(`valid_strings len before set: ${valid_strings.length}`)
