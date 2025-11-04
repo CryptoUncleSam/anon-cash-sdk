@@ -6,7 +6,7 @@ import { EncryptionService } from './utils/encryption.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 //@ts-ignore
 import * as ffjavascript from 'ffjavascript';
-import { FETCH_UTXOS_GROUP_SIZE, INDEXER_API_URL, LSK_ENCRYPTED_OUTPUTS, LSK_FETCH_OFFSET, PROGRAM_ID } from './utils/constants.js';
+import { FETCH_UTXOS_GROUP_SIZE, RELAYER_API_URL, LSK_ENCRYPTED_OUTPUTS, LSK_FETCH_OFFSET, PROGRAM_ID } from './utils/constants.js';
 import { logger } from './utils/logger.js';
 
 // Use type assertion for the utility functions (same pattern as in get_verification_keys.ts)
@@ -75,7 +75,7 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
                     let offsetStr = storage.getItem(LSK_FETCH_OFFSET + localstorageKey(publicKey))
                     let fetch_utxo_offset = offsetStr ? Number(offsetStr) : 0
                     let fetch_utxo_end = fetch_utxo_offset + FETCH_UTXOS_GROUP_SIZE
-                    let fetch_utxo_url = `${INDEXER_API_URL}/utxos/range?start=${fetch_utxo_offset}&end=${fetch_utxo_end}`
+                    let fetch_utxo_url = `${RELAYER_API_URL}/utxos/range?start=${fetch_utxo_offset}&end=${fetch_utxo_end}`
                     let fetched = await fetchUserUtxos({ publicKey, connection, url: fetch_utxo_url, encryptionService, storage })
                     let am = 0
 
@@ -462,7 +462,7 @@ async function decrypt_outputs(
     if (results.length > 0) {
         let encrypted_outputs = results.map(r => r.encryptedOutput)
 
-        let url = INDEXER_API_URL + `/utxos/indices`
+        let url = RELAYER_API_URL + `/utxos/indices`
         let res = await fetch(url, {
             method: 'POST', headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ encrypted_outputs })

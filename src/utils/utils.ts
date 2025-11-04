@@ -10,7 +10,7 @@ import { Utxo } from '../models/utxo.js';
 import * as borsh from 'borsh';
 import { sha256 } from '@ethersproject/sha2';
 import { PublicKey } from '@solana/web3.js';
-import { INDEXER_API_URL, PROGRAM_ID } from './constants.js';
+import { RELAYER_API_URL, PROGRAM_ID } from './constants.js';
 import { logger } from './logger.js';
 import { getConfig } from '../config.js';
 
@@ -118,7 +118,7 @@ export function getExtDataHash(extData: {
 export async function fetchMerkleProof(commitment: string): Promise<{ pathElements: string[], pathIndices: number[] }> {
   try {
     logger.debug(`Fetching Merkle proof for commitment: ${commitment}`);
-    const response = await fetch(`${INDEXER_API_URL}/merkle/proof/${commitment}`);
+    const response = await fetch(`${RELAYER_API_URL}/merkle/proof/${commitment}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch Merkle proof: ${response.status} ${response.statusText}`);
     }
@@ -164,7 +164,7 @@ export function findCommitmentPDAs(proof: any) {
 export async function queryRemoteTreeState(): Promise<{ root: string, nextIndex: number }> {
   try {
     logger.debug('Fetching Merkle root and nextIndex from API...');
-    const response = await fetch(`${INDEXER_API_URL}/merkle/root`);
+    const response = await fetch(`${RELAYER_API_URL}/merkle/root`);
     if (!response.ok) {
       throw new Error(`Failed to fetch Merkle root and nextIndex: ${response.status} ${response.statusText}`);
     }

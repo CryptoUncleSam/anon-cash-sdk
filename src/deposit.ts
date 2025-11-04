@@ -8,7 +8,7 @@ import { MerkleTree } from './utils/merkle_tree.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { Keypair as UtxoKeypair } from './models/keypair.js';
 import { getUtxos, isUtxoSpent } from './getUtxos.js';
-import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, INDEXER_API_URL, PROGRAM_ID } from './utils/constants.js';
+import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS } from './utils/constants.js';
 import { useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';
 
@@ -27,7 +27,7 @@ async function relayDepositToIndexer(signedTransaction: string, publicKey: Publi
             params.referralWalletAddress = referrer
         }
 
-        const response = await fetch(`${INDEXER_API_URL}/deposit`, {
+        const response = await fetch(`${RELAYER_API_URL}/deposit`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -349,7 +349,6 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Address Lookup Table for transaction size optimization
     logger.debug('Setting up Address Lookup Table...');
 
-    const ALT_ADDRESS = new PublicKey('72bpRay17JKp4k8H87p7ieU9C6aRDy5yCqwvtpTN2wuU');
     const lookupTableAccount = await useExistingALT(connection, ALT_ADDRESS);
 
     if (!lookupTableAccount?.value) {
@@ -426,7 +425,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         logger.debug(`retryTimes: ${retryTimes}`)
         await new Promise(resolve => setTimeout(resolve, itv * 1000));
         logger.debug('Fetching updated tree state...');
-        let res = await fetch(INDEXER_API_URL + '/utxos/check/' + encryptedOutputStr)
+        let res = await fetch(RELAYER_API_URL + '/utxos/check/' + encryptedOutputStr)
         let resJson = await res.json()
         if (resJson.exists) {
             logger.debug(`Top up successfully in ${((Date.now() - start) / 1000).toFixed(2)} seconds!`);

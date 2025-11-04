@@ -1,4 +1,4 @@
-import { INDEXER_API_URL } from "./utils/constants.js";
+import { RELAYER_API_URL } from "./utils/constants.js";
 
 type Config = {
     withdraw_fee_rate: number
@@ -10,7 +10,7 @@ let config: Config | undefined
 
 export async function getConfig<K extends keyof Config>(key: K): Promise<Config[K]> {
     if (!config) {
-        const res = await fetch(INDEXER_API_URL + '/config')
+        const res = await fetch(RELAYER_API_URL + '/config')
         const data = await res.json()
 
         // check types

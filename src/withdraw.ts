@@ -6,7 +6,7 @@ import * as hasher from '@lightprotocol/hasher.rs';
 import { Utxo } from './models/utxo.js';
 import { parseProofToBytesArray, parseToBytesArray, prove } from './utils/prover.js';
 
-import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, INDEXER_API_URL, MERKLE_TREE_DEPTH, PROGRAM_ID } from './utils/constants.js';
+import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, RELAYER_API_URL, MERKLE_TREE_DEPTH, PROGRAM_ID } from './utils/constants.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs } from './utils/utils.js';
 
@@ -20,7 +20,7 @@ import { getConfig } from './config.js';
 async function submitWithdrawToIndexer(params: any): Promise<string> {
     try {
 
-        const response = await fetch(`${INDEXER_API_URL}/withdraw`, {
+        const response = await fetch(`${RELAYER_API_URL}/withdraw`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -322,7 +322,7 @@ export async function withdraw({ recipient, lightWasm, storage, publicKey, conne
         console.log(`retryTimes: ${retryTimes}`)
         await new Promise(resolve => setTimeout(resolve, itv * 1000));
         console.log('Fetching updated tree state...');
-        let res = await fetch(INDEXER_API_URL + '/utxos/check/' + encryptedOutputStr)
+        let res = await fetch(RELAYER_API_URL + '/utxos/check/' + encryptedOutputStr)
         let resJson = await res.json()
         console.log('resJson:', resJson)
         if (resJson.exists) {
