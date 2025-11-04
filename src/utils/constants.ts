@@ -5,7 +5,7 @@ export const FIELD_SIZE = new BN('2188824287183927522224640574525727508854836440
 
 export const PROGRAM_ID = new PublicKey('2H723rrywJVPGRdqC2iL8Egcz2A3VCkEQ6hmt8XGcGix');
 
-export const DEPLOYER_ID = new PublicKey('BxuZn19npE43qkrQycBSb12vgruyD3vLygxwZss7eXLU')
+export const DEPLOYER_ID = new PublicKey('97rSMQUukMDjA7PYErccyx7ZxbHvSDaeXp2ig5BwSrTf')
 
 export const FEE_RECIPIENT = new PublicKey('BxuZn19npE43qkrQycBSb12vgruyD3vLygxwZss7eXLU')
 

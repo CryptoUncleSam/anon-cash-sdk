@@ -278,7 +278,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Create the deposit ExtData with real encrypted outputs
     const extData = {
         // recipient - just a placeholder, not actually used for deposits. 
-        recipient: new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM'),
+        recipient: FEE_RECIPIENT,
         extAmount: new BN(extAmount),
         encryptedOutput1: encryptedOutput1,
         encryptedOutput2: encryptedOutput2,
@@ -367,12 +367,10 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
             { pubkey: nullifier1PDA, isSigner: false, isWritable: true },
             { pubkey: nullifier2PDA, isSigner: false, isWritable: false },
             { pubkey: nullifier3PDA, isSigner: false, isWritable: false },
-            { pubkey: commitment0PDA, isSigner: false, isWritable: true },
-            { pubkey: commitment1PDA, isSigner: false, isWritable: true },
             { pubkey: treeTokenAccount, isSigner: false, isWritable: true },
             { pubkey: globalConfigAccount, isSigner: false, isWritable: false },
             // recipient - just a placeholder, not actually used for deposits. using an ALT address to save bytes
-            { pubkey: new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM'), isSigner: false, isWritable: true },
+            { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
             // fee recipient
             { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
             // signer
@@ -406,6 +404,12 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
 
     // Serialize the signed transaction for relay
     const serializedTransaction = Buffer.from(versionedTransaction.serialize()).toString('base64');
+
+
+    logger.debug('depositlog treeTokenAccount', treeTokenAccount)
+    logger.debug('depositlog messageV0', messageV0)
+    logger.debug('depositlog serializedTransaction', serializedTransaction)
+    logger.debug('depositlog depositInstruction', depositInstruction)
 
     logger.debug('Prepared signed transaction for relay to indexer backend');
 
