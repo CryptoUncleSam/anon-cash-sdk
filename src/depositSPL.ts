@@ -1,16 +1,17 @@
-import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, LAMPORTS_PER_SOL, AddressLookupTableProgram } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Utxo } from './models/utxo.js';
-import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs } from './utils/utils.js';
+import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl } from './utils/utils.js';
 import { prove, parseProofToBytesArray, parseToBytesArray } from './utils/prover.js';
 import * as hasher from '@lightprotocol/hasher.rs';
 import { MerkleTree } from './utils/merkle_tree.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { Keypair as UtxoKeypair } from './models/keypair.js';
 import { getUtxos, isUtxoSpent } from './getUtxos.js';
-import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS } from './utils/constants.js';
-import { useExistingALT } from './utils/address_lookup_table.js';
+import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS, MINT_ADDRESS } from './utils/constants.js';
+import { getProtocolAddressesWithMint, useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';
+import { getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 
 
 // Function to relay pre-signed deposit transaction to indexer backend
@@ -56,7 +57,7 @@ async function relayDepositToIndexer(signedTransaction: string, publicKey: Publi
 type DepositParams = {
     publicKey: PublicKey,
     connection: Connection,
-    amount_in_lamports: number,
+    base_units: number,
     storage: Storage,
     encryptionService: EncryptionService,
     keyBasePath: string,
@@ -64,26 +65,26 @@ type DepositParams = {
     referrer?: string,
     transactionSigner: (tx: VersionedTransaction) => Promise<VersionedTransaction>
 }
-export async function deposit({ lightWasm, storage, keyBasePath, publicKey, connection, amount_in_lamports, encryptionService, transactionSigner, referrer }: DepositParams) {
+export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, connection, base_units, encryptionService, transactionSigner, referrer }: DepositParams) {
     // check limit
     let limitAmount = await checkDepositLimit(connection)
-    if (limitAmount && amount_in_lamports > limitAmount * LAMPORTS_PER_SOL) {
+    if (limitAmount && base_units > limitAmount * LAMPORTS_PER_SOL) {
         throw new Error(`Don't deposit more than ${limitAmount} SOL`)
     }
 
-    // const amount_in_lamports = amount_in_sol * LAMPORTS_PER_SOL
-    const fee_amount_in_lamports = 0
+    // const base_units = amount_in_sol * LAMPORTS_PER_SOL
+    const fee_base_units = 0
     logger.debug('Encryption key generated from user keypair');
     logger.debug(`User wallet: ${publicKey.toString()}`);
-    logger.debug(`Deposit amount: ${amount_in_lamports} lamports (${amount_in_lamports / LAMPORTS_PER_SOL} SOL)`);
-    logger.debug(`Calculated fee: ${fee_amount_in_lamports} lamports (${fee_amount_in_lamports / LAMPORTS_PER_SOL} SOL)`);
+    logger.debug(`Deposit amount: ${base_units} lamports (${base_units / LAMPORTS_PER_SOL} SOL)`);
+    logger.debug(`Calculated fee: ${fee_base_units} lamports (${fee_base_units / LAMPORTS_PER_SOL} SOL)`);
 
     // Check wallet balance
     const balance = await connection.getBalance(publicKey);
     logger.debug(`Wallet balance: ${balance / 1e9} SOL`);
 
-    if (balance < amount_in_lamports + fee_amount_in_lamports) {
-        new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(amount_in_lamports + fee_amount_in_lamports) / LAMPORTS_PER_SOL} SOL.`);
+    if (balance < base_units + fee_base_units) {
+        new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(base_units + fee_base_units) / LAMPORTS_PER_SOL} SOL.`);
     }
 
     const { treeAccount, treeTokenAccount, globalConfigAccount } = getProgramAccounts()
@@ -120,12 +121,12 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
 
     if (existingUnspentUtxos.length === 0) {
         // Scenario 1: Fresh deposit with dummy inputs - add new funds to the system
-        extAmount = amount_in_lamports;
-        outputAmount = new BN(amount_in_lamports).sub(new BN(fee_amount_in_lamports)).toString();
+        extAmount = base_units;
+        outputAmount = new BN(base_units).sub(new BN(fee_base_units)).toString();
 
         logger.debug(`Fresh deposit scenario (no existing UTXOs):`);
         logger.debug(`External amount (deposit): ${extAmount}`);
-        logger.debug(`Fee amount: ${fee_amount_in_lamports}`);
+        logger.debug(`Fee amount: ${fee_base_units}`);
         logger.debug(`Output amount: ${outputAmount}`);
 
         // Use two dummy UTXOs as inputs
@@ -150,18 +151,18 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         const firstUtxo = existingUnspentUtxos[0];
         const firstUtxoAmount = firstUtxo.amount;
         const secondUtxoAmount = existingUnspentUtxos.length > 1 ? existingUnspentUtxos[1].amount : new BN(0);
-        extAmount = amount_in_lamports; // Still depositing new funds
+        extAmount = base_units; // Still depositing new funds
 
         // Output combines existing UTXO amounts + new deposit amount - fee
-        outputAmount = firstUtxoAmount.add(secondUtxoAmount).add(new BN(amount_in_lamports)).sub(new BN(fee_amount_in_lamports)).toString();
+        outputAmount = firstUtxoAmount.add(secondUtxoAmount).add(new BN(base_units)).sub(new BN(fee_base_units)).toString();
 
         logger.debug(`Deposit with consolidation scenario:`);
         logger.debug(`First existing UTXO amount: ${firstUtxoAmount.toString()}`);
         if (secondUtxoAmount.gt(new BN(0))) {
             logger.debug(`Second existing UTXO amount: ${secondUtxoAmount.toString()}`);
         }
-        logger.debug(`New deposit amount: ${amount_in_lamports}`);
-        logger.debug(`Fee amount: ${fee_amount_in_lamports}`);
+        logger.debug(`New deposit amount: ${base_units}`);
+        logger.debug(`Fee amount: ${fee_base_units}`);
         logger.debug(`Output amount (existing UTXOs + deposit - fee): ${outputAmount}`);
         logger.debug(`External amount (deposit): ${extAmount}`);
 
@@ -213,8 +214,8 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         }
     }
 
-    const publicAmountForCircuit = new BN(extAmount).sub(new BN(fee_amount_in_lamports)).add(FIELD_SIZE).mod(FIELD_SIZE);
-    logger.debug(`Public amount calculation: (${extAmount} - ${fee_amount_in_lamports} + FIELD_SIZE) % FIELD_SIZE = ${publicAmountForCircuit.toString()}`);
+    const publicAmountForCircuit = new BN(extAmount).sub(new BN(fee_base_units)).add(FIELD_SIZE).mod(FIELD_SIZE);
+    logger.debug(`Public amount calculation: (${extAmount} - ${fee_base_units} + FIELD_SIZE) % FIELD_SIZE = ${publicAmountForCircuit.toString()}`);
 
     // Create outputs for the transaction with the same shared keypair
     const outputs = [
@@ -282,13 +283,12 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         extAmount: new BN(extAmount),
         encryptedOutput1: encryptedOutput1,
         encryptedOutput2: encryptedOutput2,
-        fee: new BN(fee_amount_in_lamports),
+        fee: new BN(fee_base_units),
         feeRecipient: FEE_RECIPIENT,
-        mintAddress: inputs[0].mintAddress
+        mintAddress: MINT_ADDRESS.toString()
     };
-
     // Calculate the extDataHash with the encrypted outputs (now includes mintAddress for security)
-    const calculatedExtDataHash = getExtDataHash(extData);
+    const calculatedExtDataHash = getExtDataHashForSpl(extData);
 
     // Create the input for the proof generation (must match circuit input order exactly)
     const input = {
@@ -312,7 +312,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         outPubkey: outputs.map(x => x.keypair.pubkey),
 
         // new mint address
-        mintAddress: inputs[0].mintAddress
+        mintAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
     };
 
     logger.info('generating ZK proof...');
@@ -344,10 +344,29 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Find PDAs for nullifiers and commitments
     const { nullifier0PDA, nullifier1PDA } = findNullifierPDAs(proofToSubmit);
     const { nullifier2PDA, nullifier3PDA } = findCrossCheckNullifierPDAs(proofToSubmit);
-    const { commitment0PDA, commitment1PDA } = findCommitmentPDAs(proofToSubmit);
 
     // Address Lookup Table for transaction size optimization
     logger.debug('Setting up Address Lookup Table...');
+
+    let feeRecipientTokenAccount = getAssociatedTokenAddressSync(
+        MINT_ADDRESS,
+        FEE_RECIPIENT,
+        true
+    );
+    let signerTokenAccount = getAssociatedTokenAddressSync(
+        MINT_ADDRESS,
+        publicKey
+    );
+    let recipient = new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM')
+    let recipient_ata = getAssociatedTokenAddressSync(
+        MINT_ADDRESS,
+        recipient
+    );
+    const [globalConfigPda, globalConfigPdaBump] = await PublicKey.findProgramAddressSync(
+        [Buffer.from("global_config")],
+        PROGRAM_ID
+    );
+    const treeAta = getAssociatedTokenAddressSync(MINT_ADDRESS, globalConfigPda, true);
 
     const lookupTableAccount = await useExistingALT(connection, ALT_ADDRESS);
 
@@ -367,15 +386,30 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
             { pubkey: nullifier1PDA, isSigner: false, isWritable: true },
             { pubkey: nullifier2PDA, isSigner: false, isWritable: false },
             { pubkey: nullifier3PDA, isSigner: false, isWritable: false },
-            { pubkey: treeTokenAccount, isSigner: false, isWritable: true },
+
             { pubkey: globalConfigAccount, isSigner: false, isWritable: false },
-            // recipient - just a placeholder, not actually used for deposits. using an ALT address to save bytes
-            { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
-            // fee recipient
-            { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
             // signer
             { pubkey: publicKey, isSigner: true, isWritable: true },
+            // SPL token mint
+            { pubkey: MINT_ADDRESS, isSigner: false, isWritable: false },
+            // signer's token account
+            { pubkey: signerTokenAccount, isSigner: false, isWritable: true },
+            // recipient (placeholder)
+            { pubkey: recipient, isSigner: false, isWritable: true },
+            // recipient's token account (placeholder)
+            { pubkey: recipient_ata, isSigner: false, isWritable: true },
+            // tree ATA
+            { pubkey: treeAta, isSigner: false, isWritable: true },
+            // fee recipient token account
+            { pubkey: feeRecipientTokenAccount, isSigner: false, isWritable: true },
+
+            // token program id
+            { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+            // ATA program
+            { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+            // system protgram
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+
         ],
         programId: PROGRAM_ID,
         data: serializedProof,
@@ -394,6 +428,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         recentBlockhash: recentBlockhash.blockhash,
         instructions: [modifyComputeUnits, depositInstruction],
     }).compileToV0Message([lookupTableAccount.value]);
+
 
     let versionedTransaction = new VersionedTransaction(messageV0);
 

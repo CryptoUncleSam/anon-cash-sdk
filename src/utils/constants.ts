@@ -7,7 +7,8 @@ export const PROGRAM_ID = new PublicKey('2H723rrywJVPGRdqC2iL8Egcz2A3VCkEQ6hmt8X
 
 export const DEPLOYER_ID = new PublicKey('97rSMQUukMDjA7PYErccyx7ZxbHvSDaeXp2ig5BwSrTf')
 
-export const FEE_RECIPIENT = new PublicKey('BxuZn19npE43qkrQycBSb12vgruyD3vLygxwZss7eXLU')
+//BxuZn19npE43qkrQycBSb12vgruyD3vLygxwZss7eXLU
+export const FEE_RECIPIENT = new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM')
 
 export const FETCH_UTXOS_GROUP_SIZE = 4000
 
@@ -15,7 +16,7 @@ export const TRANSACT_IX_DISCRIMINATOR = Buffer.from([217, 149, 130, 143, 221, 5
 
 export const MERKLE_TREE_DEPTH = 26;
 
-export const ALT_ADDRESS = new PublicKey('8KoWpdoZcgtDUGjBgFSNsqFV7nBk2b8n2tJ2PFtAEL7q');
+export const ALT_ADDRESS = new PublicKey('HMqnZbCEYvbDkW6QmPGkJ9jp5F3GwSXQ5gAzfv7TB6RF');
 
 export const RELAYER_API_URL = process.env.NEXT_PUBLIC_RELAYER_API_URL ?? 'https://staging.privacycash.org';
 
@@ -24,3 +25,5 @@ export const SIGN_MESSAGE = `Privacy Money account sign in`
 // localStorage cache keys
 export const LSK_FETCH_OFFSET = 'fetch_offset'
 export const LSK_ENCRYPTED_OUTPUTS = 'encrypted_outputs'
+
+export const MINT_ADDRESS = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
