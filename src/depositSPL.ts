@@ -27,8 +27,9 @@ async function relayDepositToIndexer(signedTransaction: string, publicKey: Publi
         if (referrer) {
             params.referralWalletAddress = referrer
         }
+        params.mintAddress = MINT_ADDRESS.toString()
 
-        const response = await fetch(`${RELAYER_API_URL}/deposit`, {
+        const response = await fetch(`${RELAYER_API_URL}/deposit/spl`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
