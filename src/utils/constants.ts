@@ -14,6 +14,8 @@ export const FETCH_UTXOS_GROUP_SIZE = 4000
 
 export const TRANSACT_IX_DISCRIMINATOR = Buffer.from([217, 149, 130, 143, 221, 52, 252, 119]);
 
+export const TRANSACT_SPL_IX_DISCRIMINATOR = Buffer.from([154, 66, 244, 204, 78, 225, 163, 151]);
+
 export const MERKLE_TREE_DEPTH = 26;
 
 export const ALT_ADDRESS = new PublicKey('HMqnZbCEYvbDkW6QmPGkJ9jp5F3GwSXQ5gAzfv7TB6RF');

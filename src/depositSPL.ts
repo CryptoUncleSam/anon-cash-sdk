@@ -380,8 +380,8 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         throw new Error(`ALT not found at address ${ALT_ADDRESS.toString()} `);
     }
 
-    // Serialize the proof and extData
-    const serializedProof = serializeProofAndExtData(proofToSubmit, extData);
+    // Serialize the proof and extData with SPL discriminator
+    const serializedProof = serializeProofAndExtData(proofToSubmit, extData, true);
     logger.debug(`Total instruction data size: ${serializedProof.length} bytes`);
 
     // Create the deposit instruction (user signs, not relayer)
