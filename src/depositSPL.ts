@@ -152,11 +152,13 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         inputs = [
             new Utxo({
                 lightWasm,
-                keypair: utxoKeypair
+                keypair: utxoKeypair,
+                mintAddress: MINT_ADDRESS.toString()
             }),
             new Utxo({
                 lightWasm,
-                keypair: utxoKeypair
+                keypair: utxoKeypair,
+                mintAddress: MINT_ADDRESS.toString()
             })
         ];
 

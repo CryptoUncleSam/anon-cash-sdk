@@ -298,6 +298,5 @@ export function getMintAddressField(mint: PublicKey): string {
   // This provides better collision resistance than 8 bytes while still fitting in the field
   // We will only suppport private SOL, USDC and USDT send, so there won't be any collision.
   const mintBytes = mint.toBytes();
-  return new BN(mintBytes.slice(0, 16), 'be').toString();
+  return new BN(mintBytes.slice(0, 31), 'be').toString();
 }
-
