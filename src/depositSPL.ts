@@ -194,7 +194,8 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         const secondUtxo = existingUnspentUtxos.length > 1 ? existingUnspentUtxos[1] : new Utxo({
             lightWasm,
             keypair: utxoKeypair,
-            amount: '0'
+            amount: '0', // This UTXO will be inserted at currentNextIndex
+            mintAddress: MINT_ADDRESS.toString()
         });
 
         inputs = [
@@ -244,13 +245,15 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
             lightWasm,
             amount: outputAmount,
             keypair: utxoKeypair,
-            index: currentNextIndex // This UTXO will be inserted at currentNextIndex
+            index: currentNextIndex, // This UTXO will be inserted at currentNextIndex
+            mintAddress: MINT_ADDRESS.toString()
         }), // Output with value (either deposit amount minus fee, or input amount minus fee)
         new Utxo({
             lightWasm,
             amount: '0',
             keypair: utxoKeypair,
-            index: currentNextIndex + 1 // This UTXO will be inserted at currentNextIndex + 1
+            index: currentNextIndex + 1, // This UTXO will be inserted at currentNextIndex
+            mintAddress: MINT_ADDRESS.toString()
         }) // Empty UTXO
     ];
 
