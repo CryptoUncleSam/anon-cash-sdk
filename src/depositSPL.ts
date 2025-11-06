@@ -45,7 +45,7 @@ async function relayDepositToIndexer({ signedTransaction, publicKey, referrer, m
         });
 
         if (!response.ok) {
-            logger.error('res text:', await response.text())
+            console.log('res text:', await response.json())
             throw new Error('response not ok')
             // const errorData = await response.json() as { error?: string };
             // throw new Error(`Deposit relay failed: ${response.status} ${response.statusText} - ${errorData.error || 'Unknown error'}`);
