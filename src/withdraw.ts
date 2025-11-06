@@ -52,10 +52,11 @@ type WithdrawParams = {
     encryptionService: EncryptionService,
     lightWasm: hasher.LightWasm,
     recipient: PublicKey,
+    mintAddress: PublicKey,
     storage: Storage
 }
 
-export async function withdraw({ recipient, lightWasm, storage, publicKey, connection, amount_in_lamports, encryptionService, keyBasePath }: WithdrawParams) {
+export async function withdraw({ recipient, lightWasm, storage, publicKey, connection, amount_in_lamports, encryptionService, keyBasePath, mintAddress }: WithdrawParams) {
     let fee_in_lamports = amount_in_lamports * (await getConfig('withdraw_fee_rate')) + LAMPORTS_PER_SOL * (await getConfig('withdraw_rent_fee'))
     amount_in_lamports -= fee_in_lamports
     let isPartial = false
@@ -84,23 +85,25 @@ export async function withdraw({ recipient, lightWasm, storage, publicKey, conne
 
     // Fetch existing UTXOs for this user
     logger.debug('\nFetching existing UTXOs...');
-    const unspentUtxos = await getUtxos({ connection, publicKey, encryptionService, storage });
-    logger.debug(`Found ${unspentUtxos.length} total UTXOs`);
+    const existingUnspentUtxos = await getUtxos({ connection, publicKey, encryptionService, storage });
+    const mintUtxos = existingUnspentUtxos[mintAddress.toString()] ?? []
+
+    logger.debug(`Found ${mintUtxos.length} total UTXOs`);
 
     // Calculate and log total unspent UTXO balance
-    const totalUnspentBalance = unspentUtxos.reduce((sum, utxo) => sum.add(utxo.amount), new BN(0));
+    const totalUnspentBalance = mintUtxos.reduce((sum, utxo) => sum.add(utxo.amount), new BN(0));
     logger.debug(`Total unspent UTXO balance before: ${totalUnspentBalance.toString()} lamports (${totalUnspentBalance.toNumber() / 1e9} SOL)`);
 
-    if (unspentUtxos.length < 1) {
+    if (mintUtxos.length < 1) {
         throw new Error('Need at least 1 unspent UTXO to perform a withdrawal');
     }
 
     // Sort UTXOs by amount in descending order to use the largest ones first
-    unspentUtxos.sort((a, b) => b.amount.cmp(a.amount));
+    mintUtxos.sort((a, b) => b.amount.cmp(a.amount));
 
     // Use the largest UTXO as first input, and either second largest UTXO or dummy UTXO as second input
-    const firstInput = unspentUtxos[0];
-    const secondInput = unspentUtxos.length > 1 ? unspentUtxos[1] : new Utxo({
+    const firstInput = mintUtxos[0];
+    const secondInput = mintUtxos.length > 1 ? mintUtxos[1] : new Utxo({
         lightWasm,
         keypair: utxoKeypair,
         amount: '0'

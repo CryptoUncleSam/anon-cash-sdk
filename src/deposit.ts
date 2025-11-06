@@ -108,7 +108,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Fetch existing UTXOs for this user
     logger.debug('\nFetching existing UTXOs...');
     const existingUnspentUtxos = await getUtxos({ connection, publicKey, encryptionService, storage });
-
+    const mintUtxos = existingUnspentUtxos['placeholder'] ?? []
     // Calculate output amounts and external amount based on scenario
     let extAmount: number;
     let outputAmount: string;
@@ -118,7 +118,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     let inputMerklePathIndices: number[];
     let inputMerklePathElements: string[][];
 
-    if (existingUnspentUtxos.length === 0) {
+    if (mintUtxos.length === 0) {
         // Scenario 1: Fresh deposit with dummy inputs - add new funds to the system
         extAmount = amount_in_lamports;
         outputAmount = new BN(amount_in_lamports).sub(new BN(fee_amount_in_lamports)).toString();
@@ -147,9 +147,9 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         });
     } else {
         // Scenario 2: Deposit that consolidates with existing UTXO(s)
-        const firstUtxo = existingUnspentUtxos[0];
+        const firstUtxo = mintUtxos[0];
         const firstUtxoAmount = firstUtxo.amount;
-        const secondUtxoAmount = existingUnspentUtxos.length > 1 ? existingUnspentUtxos[1].amount : new BN(0);
+        const secondUtxoAmount = mintUtxos.length > 1 ? mintUtxos[1].amount : new BN(0);
         extAmount = amount_in_lamports; // Still depositing new funds
 
         // Output combines existing UTXO amounts + new deposit amount - fee
@@ -169,7 +169,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         await firstUtxo.log();
 
         // Use first existing UTXO as first input, and either second UTXO or dummy UTXO as second input
-        const secondUtxo = existingUnspentUtxos.length > 1 ? existingUnspentUtxos[1] : new Utxo({
+        const secondUtxo = mintUtxos.length > 1 ? mintUtxos[1] : new Utxo({
             lightWasm,
             keypair: utxoKeypair,
             amount: '0'

@@ -107,6 +107,7 @@ export class PrivacyCash {
         logger.info('start depositting')
         let lightWasm = await WasmFactory.getInstance()
         let res = await depositSPL({
+            mintAddress: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
             lightWasm,
             base_units: base_units,
             connection: this.connection,
@@ -137,6 +138,7 @@ export class PrivacyCash {
         let lightWasm = await WasmFactory.getInstance()
         let recipient = recipientAddress ? new PublicKey(recipientAddress) : this.publicKey
         let res = await withdraw({
+            mintAddress: new PublicKey('11111111111111111111111111111112'),
             lightWasm,
             amount_in_lamports: lamports,
             connection: this.connection,
@@ -154,12 +156,12 @@ export class PrivacyCash {
     /**
      * Returns the amount of lamports current wallet has in Privacy Cash.
      */
-    async getPrivateBalance() {
+    async getPrivateBalance(mintAddress: string) {
         logger.info('getting private balance')
         this.isRuning = true
         let utxos = await getUtxos({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage })
         this.isRuning = false
-        return getBalanceFromUtxos(utxos)
+        return getBalanceFromUtxos(utxos[mintAddress] ?? [])
     }
 
     /**
