@@ -285,3 +285,19 @@ export
   return Buffer.from(hashHex.slice(2), 'hex');
 }
 
+
+export function getMintAddressField(mint: PublicKey): string {
+  const mintStr = mint.toString();
+
+  // Special case for SOL (system program)
+  if (mintStr === '11111111111111111111111111111112') {
+    return mintStr;
+  }
+
+  // For SPL tokens (USDC, USDT, etc): use first 16 bytes (128 bits)
+  // This provides better collision resistance than 8 bytes while still fitting in the field
+  // We will only suppport private SOL, USDC and USDT send, so there won't be any collision.
+  const mintBytes = mint.toBytes();
+  return new BN(mintBytes.slice(0, 16), 'be').toString();
+}
+

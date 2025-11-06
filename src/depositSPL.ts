@@ -1,7 +1,7 @@
-import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, LAMPORTS_PER_SOL, AddressLookupTableProgram } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, AddressLookupTableProgram } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Utxo } from './models/utxo.js';
-import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl } from './utils/utils.js';
+import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl, getMintAddressField } from './utils/utils.js';
 import { prove, parseProofToBytesArray, parseToBytesArray } from './utils/prover.js';
 import * as hasher from '@lightprotocol/hasher.rs';
 import { MerkleTree } from './utils/merkle_tree.js';
@@ -11,7 +11,7 @@ import { getUtxos, isUtxoSpent } from './getUtxos.js';
 import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS, MINT_ADDRESS } from './utils/constants.js';
 import { getProtocolAddressesWithMint, useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';
-import { getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
 
 
 // Function to relay pre-signed deposit transaction to indexer backend
@@ -66,25 +66,44 @@ type DepositParams = {
     transactionSigner: (tx: VersionedTransaction) => Promise<VersionedTransaction>
 }
 export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, connection, base_units, encryptionService, transactionSigner, referrer }: DepositParams) {
-    // check limit
-    let limitAmount = await checkDepositLimit(connection)
-    if (limitAmount && base_units > limitAmount * LAMPORTS_PER_SOL) {
-        throw new Error(`Don't deposit more than ${limitAmount} SOL`)
-    }
+    let mintInfo = await getMint(connection, MINT_ADDRESS)
+    let units_per_token = 10 ** mintInfo.decimals
 
-    // const base_units = amount_in_sol * LAMPORTS_PER_SOL
+    let recipient = new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM')
+    let recipient_ata = getAssociatedTokenAddressSync(
+        MINT_ADDRESS,
+        recipient,
+        true
+    );
+    let feeRecipientTokenAccount = getAssociatedTokenAddressSync(
+        MINT_ADDRESS,
+        FEE_RECIPIENT,
+        true
+    );
+    let signerTokenAccount = getAssociatedTokenAddressSync(
+        MINT_ADDRESS,
+        publicKey
+    );
+
+    // check limit
+    // let limitAmount = await checkDepositLimit(connection)
+    // if (limitAmount && base_units > limitAmount * units_per_token) {
+    //     throw new Error(`Don't deposit more than ${limitAmount} SOL`)
+    // }
+
+    // const base_units = amount_in_sol * units_per_token
     const fee_base_units = 0
     logger.debug('Encryption key generated from user keypair');
     logger.debug(`User wallet: ${publicKey.toString()}`);
-    logger.debug(`Deposit amount: ${base_units} lamports (${base_units / LAMPORTS_PER_SOL} SOL)`);
-    logger.debug(`Calculated fee: ${fee_base_units} lamports (${fee_base_units / LAMPORTS_PER_SOL} SOL)`);
+    logger.debug(`Deposit amount: ${base_units} lamports (${base_units / units_per_token} SOL)`);
+    logger.debug(`Calculated fee: ${fee_base_units} lamports (${fee_base_units / units_per_token} SOL)`);
 
     // Check wallet balance
     const balance = await connection.getBalance(publicKey);
     logger.debug(`Wallet balance: ${balance / 1e9} SOL`);
 
     if (balance < base_units + fee_base_units) {
-        new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(base_units + fee_base_units) / LAMPORTS_PER_SOL} SOL.`);
+        new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(base_units + fee_base_units) / units_per_token} SOL.`);
     }
 
     const { treeAccount, treeTokenAccount, globalConfigAccount } = getProgramAccounts()
@@ -279,12 +298,12 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     // Create the deposit ExtData with real encrypted outputs
     const extData = {
         // recipient - just a placeholder, not actually used for deposits. 
-        recipient: FEE_RECIPIENT,
+        recipient: recipient_ata,
         extAmount: new BN(extAmount),
         encryptedOutput1: encryptedOutput1,
         encryptedOutput2: encryptedOutput2,
         fee: new BN(fee_base_units),
-        feeRecipient: FEE_RECIPIENT,
+        feeRecipient: feeRecipientTokenAccount,
         mintAddress: MINT_ADDRESS.toString()
     };
     // Calculate the extDataHash with the encrypted outputs (now includes mintAddress for security)
@@ -294,8 +313,7 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     const input = {
         // Common transaction data
         root: root,
-        inputNullifier: inputNullifiers, // Use resolved values instead of Promise objects
-        outputCommitment: outputCommitments, // Use resolved values instead of Promise objects
+        mintAddress: getMintAddressField(MINT_ADDRESS),// new mint address
         publicAmount: publicAmountForCircuit.toString(), // Use proper field arithmetic result
         extDataHash: calculatedExtDataHash,
 
@@ -305,14 +323,13 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         inBlinding: inputs.map(x => x.blinding.toString(10)),
         inPathIndices: inputMerklePathIndices,
         inPathElements: inputMerklePathElements,
+        inputNullifier: inputNullifiers, // Use resolved values instead of Promise objects
 
         // Output UTXO data (UTXOs being created) - ensure all values are in decimal format
         outAmount: outputs.map(x => x.amount.toString(10)),
         outBlinding: outputs.map(x => x.blinding.toString(10)),
         outPubkey: outputs.map(x => x.keypair.pubkey),
-
-        // new mint address
-        mintAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+        outputCommitment: outputCommitments,
     };
 
     logger.info('generating ZK proof...');
@@ -345,23 +362,6 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     const { nullifier0PDA, nullifier1PDA } = findNullifierPDAs(proofToSubmit);
     const { nullifier2PDA, nullifier3PDA } = findCrossCheckNullifierPDAs(proofToSubmit);
 
-    // Address Lookup Table for transaction size optimization
-    logger.debug('Setting up Address Lookup Table...');
-
-    let feeRecipientTokenAccount = getAssociatedTokenAddressSync(
-        MINT_ADDRESS,
-        FEE_RECIPIENT,
-        true
-    );
-    let signerTokenAccount = getAssociatedTokenAddressSync(
-        MINT_ADDRESS,
-        publicKey
-    );
-    let recipient = new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM')
-    let recipient_ata = getAssociatedTokenAddressSync(
-        MINT_ADDRESS,
-        recipient
-    );
     const [globalConfigPda, globalConfigPdaBump] = await PublicKey.findProgramAddressSync(
         [Buffer.from("global_config")],
         PROGRAM_ID
@@ -470,59 +470,4 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         retryTimes++
     }
 
-}
-
-
-async function checkDepositLimit(connection: Connection) {
-    try {
-
-        // Derive the tree account PDA
-        const [treeAccount] = PublicKey.findProgramAddressSync(
-            [Buffer.from('merkle_tree')],
-            PROGRAM_ID
-        );
-
-
-        // Fetch the account data
-        const accountInfo = await connection.getAccountInfo(treeAccount);
-
-        if (!accountInfo) {
-            console.error('❌ Tree account not found. Make sure the program is initialized.');
-            return;
-        }
-
-        console.log(`Account data size: ${accountInfo.data.length} bytes`);
-        const authority = new PublicKey(accountInfo.data.slice(8, 40));
-        const nextIndex = new BN(accountInfo.data.slice(40, 48), 'le');
-        const rootIndex = new BN(accountInfo.data.slice(4112, 4120), 'le');
-        const maxDepositAmount = new BN(accountInfo.data.slice(4120, 4128), 'le');
-        const bump = accountInfo.data[4128];
-
-        console.log('\n📋 MerkleTreeAccount Details:');
-        console.log(`┌─ Authority: ${authority.toString()}`);
-        console.log(`├─ Next Index: ${nextIndex.toString()}`);
-        console.log(`├─ Root Index: ${rootIndex.toString()}`);
-        console.log(`├─ Max Deposit Amount: ${maxDepositAmount.toString()} lamports`);
-
-        // Convert to SOL using BN division to handle large numbers
-        const lamportsPerSol = new BN(1_000_000_000);
-        const maxDepositSol = maxDepositAmount.div(lamportsPerSol);
-        const remainder = maxDepositAmount.mod(lamportsPerSol);
-
-        // Format the SOL amount with decimals
-        let solFormatted = '1';
-        if (remainder.eq(new BN(0))) {
-            solFormatted = maxDepositSol.toString();
-        } else {
-            // Handle fractional SOL by converting remainder to decimal
-            const fractional = remainder.toNumber() / 1e9;
-            solFormatted = `${maxDepositSol.toString()}${fractional.toFixed(9).substring(1)}`;
-        }
-        console.log('solFormatted', solFormatted)
-        return Number(solFormatted)
-
-    } catch (error) {
-        console.log('❌ Error reading deposit limit:', error);
-        throw error
-    }
 }

@@ -10,6 +10,7 @@ import bs58 from 'bs58'
 import { withdraw } from './withdraw.js';
 import { LocalStorage } from "node-localstorage";
 import path from 'node:path'
+import { depositSPL } from './depositSPL.js';
 
 let storage = new LocalStorage(path.join(process.cwd(), "cache"));
 
@@ -82,6 +83,32 @@ export class PrivacyCash {
         let res = await deposit({
             lightWasm,
             amount_in_lamports: lamports,
+            connection: this.connection,
+            encryptionService: this.encryptionService,
+            publicKey: this.publicKey,
+            transactionSigner: async (tx: VersionedTransaction) => {
+                tx.sign([this.keypair])
+                return tx
+            },
+            keyBasePath: path.join(import.meta.dirname, '..', 'circuit2', 'transaction2'),
+            storage
+        })
+        this.isRuning = false
+        return res
+    }
+
+    /**
+    * Deposit USDC to the Privacy Cash.
+    */
+    async depositUSDC({ base_units }: {
+        base_units: number
+    }) {
+        this.isRuning = true
+        logger.info('start depositting')
+        let lightWasm = await WasmFactory.getInstance()
+        let res = await depositSPL({
+            lightWasm,
+            base_units: base_units,
             connection: this.connection,
             encryptionService: this.encryptionService,
             publicKey: this.publicKey,
