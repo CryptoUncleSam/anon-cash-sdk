@@ -63,8 +63,12 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
 
     let withdraw_fee_rate = 0.0035
     let withdraw_rent_fee = 1
-    let fee_base_units = base_units * withdraw_fee_rate + units_per_token * withdraw_rent_fee
+    let fee_base_units = Math.floor(base_units * withdraw_fee_rate + units_per_token * withdraw_rent_fee)
     base_units -= fee_base_units
+
+    if (base_units < 0) {
+        throw new Error('withdraw amount too low')
+    }
     let isPartial = false
 
     let recipient_ata = getAssociatedTokenAddressSync(
@@ -249,7 +253,6 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
         feeRecipient: feeRecipientTokenAccount,
         mintAddress: mintAddress.toString()
     };
-
     // Calculate the extDataHash with the encrypted outputs
     const calculatedExtDataHash = getExtDataHashForSpl(extData);
 
