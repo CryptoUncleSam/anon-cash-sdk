@@ -66,7 +66,7 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     let fee_base_units = Math.floor(base_units * withdraw_fee_rate + units_per_token * withdraw_rent_fee)
     base_units -= fee_base_units
 
-    if (base_units < 0) {
+    if (base_units <= 0) {
         throw new Error('withdraw amount too low')
     }
     let isPartial = false
@@ -312,7 +312,7 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     const { commitment0PDA, commitment1PDA } = findCommitmentPDAs(proofToSubmit);
 
     // Serialize the proof and extData
-    const serializedProof = serializeProofAndExtData(proofToSubmit, extData);
+    const serializedProof = serializeProofAndExtData(proofToSubmit, extData, true);
     logger.debug(`Total instruction data size: ${serializedProof.length} bytes`);
 
     const [globalConfigPda, globalConfigPdaBump] = await PublicKey.findProgramAddressSync(
