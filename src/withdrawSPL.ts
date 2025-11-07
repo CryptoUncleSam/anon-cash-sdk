@@ -129,7 +129,8 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     const secondInput = mintUtxos.length > 1 ? mintUtxos[1] : new Utxo({
         lightWasm,
         keypair: utxoKeypair,
-        amount: '0'
+        amount: '0',
+        mintAddress: mintAddress.toString()
     });
 
     const inputs = [firstInput, secondInput];
@@ -176,13 +177,15 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
             lightWasm,
             amount: changeAmount.toString(),
             keypair: utxoKeypairV2,
-            index: currentNextIndex
+            index: currentNextIndex,
+            mintAddress: mintAddress.toString()
         }), // Change output
         new Utxo({
             lightWasm,
             amount: '0',
             keypair: utxoKeypairV2,
-            index: currentNextIndex + 1
+            index: currentNextIndex + 1,
+            mintAddress: mintAddress.toString()
         }) // Empty UTXO
     ];
 
