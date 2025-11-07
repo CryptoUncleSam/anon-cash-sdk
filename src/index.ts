@@ -11,6 +11,7 @@ import { withdraw } from './withdraw.js';
 import { LocalStorage } from "node-localstorage";
 import path from 'node:path'
 import { depositSPL } from './depositSPL.js';
+import { withdrawSPL } from './withdrawSPL.js';
 
 let storage = new LocalStorage(path.join(process.cwd(), "cache"));
 
@@ -154,9 +155,38 @@ export class PrivacyCash {
     }
 
     /**
+     * Withdraw SOL from the Privacy Cash.
+     * 
+     * Lamports is the amount of SOL in lamports. e.g. if you want to withdraw 0.01 SOL (10000000 lamports), call withdraw({ lamports: 10000000 })
+     */
+    async withdrawUSDC({ base_units, recipientAddress }: {
+        base_units: number,
+        recipientAddress?: string
+    }) {
+        this.isRuning = true
+        logger.info('start withdrawing')
+        let lightWasm = await WasmFactory.getInstance()
+        let recipient = recipientAddress ? new PublicKey(recipientAddress) : this.publicKey
+        let res = await withdrawSPL({
+            mintAddress: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
+            lightWasm,
+            base_units,
+            connection: this.connection,
+            encryptionService: this.encryptionService,
+            publicKey: this.publicKey,
+            recipient,
+            keyBasePath: path.join(import.meta.dirname, '..', 'circuit2', 'transaction2'),
+            storage
+        })
+        console.log(`Withdraw successful. Recipient ${recipient} received ${base_units} USDC units`)
+        this.isRuning = false
+        return res
+    }
+
+    /**
      * Returns the amount of lamports current wallet has in Privacy Cash.
      */
-    async getPrivateBalance(mintAddress: string) {
+    async getPrivateBalance(mintAddress: string = '11111111111111111111111111111112') {
         logger.info('getting private balance')
         this.isRuning = true
         let utxos = await getUtxos({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage })

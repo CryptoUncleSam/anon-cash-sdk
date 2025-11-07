@@ -337,12 +337,13 @@ async function areUtxosSpent(
 }
 
 // Calculate total balance
-export function getBalanceFromUtxos(utxos: Utxo[]) {
+export function getBalanceFromUtxos(utxos: Utxo[]): {
+    base_units: number
+    /** @deprecated use base_units instead */
+    lamports: number
+} {
     const totalBalance = utxos.reduce((sum, utxo) => sum.add(utxo.amount), new BN(0));
-    // const LAMPORTS_PER_SOL = new BN(1_000_000_000);
-    // const balanceInSol = totalBalance.div(LAMPORTS_PER_SOL);
-    // const remainderLamports = totalBalance.mod(LAMPORTS_PER_SOL);
-    return { lamports: totalBalance.toNumber() }
+    return { base_units: totalBalance.toNumber(), lamports: totalBalance.toNumber() }
 }
 
 // Decrypt single output to Utxo
