@@ -8,7 +8,7 @@ import { parseProofToBytesArray, parseToBytesArray, prove } from './utils/prover
 
 import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, RELAYER_API_URL, MERKLE_TREE_DEPTH, PROGRAM_ID } from './utils/constants.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
-import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField } from './utils/utils.js';
+import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl } from './utils/utils.js';
 
 import { getUtxos, isUtxoSpent } from './getUtxos.js';
 import { logger } from './utils/logger.js';
@@ -248,7 +248,7 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     };
 
     // Calculate the extDataHash with the encrypted outputs
-    const calculatedExtDataHash = getExtDataHash(extData);
+    const calculatedExtDataHash = getExtDataHashForSpl(extData);
 
     // Create the input for the proof generation
     const input = {
