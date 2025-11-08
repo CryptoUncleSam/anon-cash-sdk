@@ -11,7 +11,7 @@ import { getUtxos, isUtxoSpent } from './getUtxosSPL.js';
 import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS } from './utils/constants.js';
 import { getProtocolAddressesWithMint, useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';
-import { getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
+import { getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getMint, getAccount } from '@solana/spl-token';
 
 
 // Function to relay pre-signed deposit transaction to indexer backend
@@ -104,15 +104,26 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     const fee_base_units = 0
     logger.debug('Encryption key generated from user keypair');
     logger.debug(`User wallet: ${publicKey.toString()}`);
-    logger.debug(`Deposit amount: ${base_units} lamports (${base_units / units_per_token} SOL)`);
-    logger.debug(`Calculated fee: ${fee_base_units} lamports (${fee_base_units / units_per_token} SOL)`);
+    logger.debug(`Deposit amount: ${base_units} base_units (${base_units / units_per_token} USDC)`);
+    logger.debug(`Calculated fee: ${fee_base_units} base_units (${fee_base_units / units_per_token} USDC)`);
 
-    // Check wallet balance
-    const balance = await connection.getBalance(publicKey);
-    logger.debug(`Wallet balance: ${balance / 1e9} SOL`);
+    // Check SPL balance
+    const accountInfo = await getAccount(connection, signerTokenAccount)
+    let balance = Number(accountInfo.amount)
+    logger.debug(`USDC wallet balance: ${balance / units_per_token} USDC`);
+    console.log('balance', balance)
+    console.log('base_units + fee_base_units', base_units + fee_base_units)
 
-    if (balance < base_units + fee_base_units) {
-        new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(base_units + fee_base_units) / units_per_token} SOL.`);
+    if (balance < (base_units + fee_base_units)) {
+        throw new Error(`Insufficient balance. Need at least ${(base_units + fee_base_units) / units_per_token} USDC.`);
+    }
+
+    // Check SOL balance
+    const solBalance = await connection.getBalance(publicKey);
+    logger.debug(`SOL Wallet balance: ${balance / 1e9} SOL`);
+
+    if (solBalance / 1e9 < 0.01) {
+        throw new Error(`Need at least 0.01 SOL for Solana fees.`);
     }
 
     const { treeAccount, treeTokenAccount, globalConfigAccount } = getProgramAccounts()

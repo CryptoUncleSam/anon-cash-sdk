@@ -83,7 +83,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     logger.debug(`Wallet balance: ${balance / 1e9} SOL`);
 
     if (balance < amount_in_lamports + fee_amount_in_lamports) {
-        new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(amount_in_lamports + fee_amount_in_lamports) / LAMPORTS_PER_SOL} SOL.`);
+        throw new Error(`Insufficient balance: ${balance / 1e9} SOL. Need at least ${(amount_in_lamports + fee_amount_in_lamports) / LAMPORTS_PER_SOL} SOL.`);
     }
 
     const { treeAccount, treeTokenAccount, globalConfigAccount } = getProgramAccounts()

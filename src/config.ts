@@ -4,9 +4,7 @@ type Config = {
     withdraw_fee_rate: number
     withdraw_rent_fee: number
     deposit_fee_rate: number
-    usdc_withdraw_fee_rate: number
     usdc_withdraw_rent_fee: number
-    usdc_deposit_fee_rate: number
 }
 
 let config: Config | undefined
