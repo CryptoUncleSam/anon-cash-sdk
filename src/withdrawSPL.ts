@@ -10,7 +10,7 @@ import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, RELAYER_API_URL, M
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl } from './utils/utils.js';
 
-import { getUtxos, isUtxoSpent } from './getUtxos.js';
+import { getUtxos, isUtxoSpent } from './getUtxosSPL.js';
 import { logger } from './utils/logger.js';
 import { getConfig } from './config.js';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
@@ -61,8 +61,9 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     let mintInfo = await getMint(connection, mintAddress)
     let units_per_token = 10 ** mintInfo.decimals
 
-    let withdraw_fee_rate = 0.0035
-    let withdraw_rent_fee = 1
+    let withdraw_fee_rate = await getConfig('withdraw_fee_rate')
+    let withdraw_rent_fee = await getConfig('usdc_withdraw_rent_fee')
+
     let fee_base_units = Math.floor(base_units * withdraw_fee_rate + units_per_token * withdraw_rent_fee)
     base_units -= fee_base_units
 

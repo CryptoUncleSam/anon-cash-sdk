@@ -41,7 +41,9 @@ export function localstorageKey(key: PublicKey) {
     return PROGRAM_ID.toString().substring(0, 6) + key.toString()
 }
 
-let getMyUtxosPromise: Promise<Utxo[]> | null = null
+type Utxos = { [k: string]: Utxo[] }
+
+let getMyUtxosPromise: Promise<Utxos> | null = null
 let roundStartIndex = 0
 let decryptionTaskFinished = 0;
 /**
@@ -57,7 +59,7 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
     connection: Connection,
     encryptionService: EncryptionService,
     storage: Storage
-}): Promise<Utxo[]> {
+}): Promise<Utxos> {
     if (!getMyUtxosPromise) {
         getMyUtxosPromise = (async () => {
             let valid_utxos: Utxo[] = []
@@ -103,7 +105,7 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
                     if (!fetched.hasMore) {
                         break
                     }
-                    await sleep(20)
+                    await sleep(100)
                 }
             } catch (e: any) {
                 throw e
@@ -130,7 +132,17 @@ export async function getUtxos({ publicKey, connection, encryptionService, stora
             valid_strings = [...new Set(valid_strings)];
             logger.debug(`valid_strings len after set: ${valid_strings.length}`)
             storage.setItem(LSK_ENCRYPTED_OUTPUTS + localstorageKey(publicKey), JSON.stringify(valid_strings))
-            return valid_utxos
+            // reorgnize
+            let res: Utxos = {}
+            for (let utxo of valid_utxos) {
+                let mint = res[utxo.mintAddress]
+                if (!mint) {
+                    res[utxo.mintAddress] = [utxo]
+                } else {
+                    mint.push(utxo)
+                }
+            }
+            return res
         })()
     }
     return getMyUtxosPromise
@@ -325,12 +337,13 @@ async function areUtxosSpent(
 }
 
 // Calculate total balance
-export function getBalanceFromUtxos(utxos: Utxo[]) {
+export function getBalanceFromUtxos(utxos: Utxo[]): {
+    base_units: number
+    /** @deprecated use base_units instead */
+    lamports: number
+} {
     const totalBalance = utxos.reduce((sum, utxo) => sum.add(utxo.amount), new BN(0));
-    // const LAMPORTS_PER_SOL = new BN(1_000_000_000);
-    // const balanceInSol = totalBalance.div(LAMPORTS_PER_SOL);
-    // const remainderLamports = totalBalance.mod(LAMPORTS_PER_SOL);
-    return { lamports: totalBalance.toNumber() }
+    return { base_units: totalBalance.toNumber(), lamports: totalBalance.toNumber() }
 }
 
 // Decrypt single output to Utxo

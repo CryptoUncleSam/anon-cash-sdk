@@ -1,8 +1,9 @@
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { deposit } from './deposit.js';
 import { getBalanceFromUtxos, getUtxos, localstorageKey } from './getUtxos.js';
+import { getBalanceFromUtxos as getBalanceFromUtxosSPL, getUtxos as getUtxosSPL } from './getUtxosSPL.js';
 
-import { LSK_ENCRYPTED_OUTPUTS, LSK_FETCH_OFFSET } from './utils/constants.js';
+import { LSK_ENCRYPTED_OUTPUTS, LSK_FETCH_OFFSET, USDC_MINT } from './utils/constants.js';
 import { logger, type LoggerFn, setLogger } from './utils/logger.js';
 import { EncryptionService } from './utils/encryption.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -139,7 +140,6 @@ export class PrivacyCash {
         let lightWasm = await WasmFactory.getInstance()
         let recipient = recipientAddress ? new PublicKey(recipientAddress) : this.publicKey
         let res = await withdraw({
-            mintAddress: new PublicKey('11111111111111111111111111111112'),
             lightWasm,
             amount_in_lamports: lamports,
             connection: this.connection,
@@ -168,7 +168,7 @@ export class PrivacyCash {
         let lightWasm = await WasmFactory.getInstance()
         let recipient = recipientAddress ? new PublicKey(recipientAddress) : this.publicKey
         let res = await withdrawSPL({
-            mintAddress: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
+            mintAddress: USDC_MINT,
             lightWasm,
             base_units,
             connection: this.connection,
@@ -186,12 +186,23 @@ export class PrivacyCash {
     /**
      * Returns the amount of lamports current wallet has in Privacy Cash.
      */
-    async getPrivateBalance(mintAddress: string = '11111111111111111111111111111112') {
+    async getPrivateBalance() {
         logger.info('getting private balance')
         this.isRuning = true
         let utxos = await getUtxos({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage })
         this.isRuning = false
-        return getBalanceFromUtxos(utxos[mintAddress] ?? [])
+        return getBalanceFromUtxos(utxos)
+    }
+
+    /**
+    * Returns the amount of lamports current wallet has in Privacy Cash.
+    */
+    async getPrivateBalanceUSDC() {
+        logger.info('getting private balance')
+        this.isRuning = true
+        let utxos = await getUtxosSPL({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage })
+        this.isRuning = false
+        return getBalanceFromUtxosSPL(utxos[USDC_MINT.toString()] ?? [])
     }
 
     /**

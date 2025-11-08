@@ -27,3 +27,5 @@ export const SIGN_MESSAGE = `Privacy Money account sign in`
 // localStorage cache keys
 export const LSK_FETCH_OFFSET = 'fetch_offset'
 export const LSK_ENCRYPTED_OUTPUTS = 'encrypted_outputs'
+
+export const USDC_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU')

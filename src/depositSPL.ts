@@ -7,7 +7,7 @@ import * as hasher from '@lightprotocol/hasher.rs';
 import { MerkleTree } from './utils/merkle_tree.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { Keypair as UtxoKeypair } from './models/keypair.js';
-import { getUtxos, isUtxoSpent } from './getUtxos.js';
+import { getUtxos, isUtxoSpent } from './getUtxosSPL.js';
 import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS } from './utils/constants.js';
 import { getProtocolAddressesWithMint, useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';

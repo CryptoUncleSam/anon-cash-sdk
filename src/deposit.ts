@@ -8,7 +8,7 @@ import { MerkleTree } from './utils/merkle_tree.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { Keypair as UtxoKeypair } from './models/keypair.js';
 import { getUtxos, isUtxoSpent } from './getUtxos.js';
-import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS } from './utils/constants.js';
+import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID } from './utils/constants.js';
 import { useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';
 
@@ -108,7 +108,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Fetch existing UTXOs for this user
     logger.debug('\nFetching existing UTXOs...');
     const existingUnspentUtxos = await getUtxos({ connection, publicKey, encryptionService, storage });
-    const mintUtxos = existingUnspentUtxos['placeholder'] ?? []
+
     // Calculate output amounts and external amount based on scenario
     let extAmount: number;
     let outputAmount: string;
@@ -118,7 +118,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     let inputMerklePathIndices: number[];
     let inputMerklePathElements: string[][];
 
-    if (mintUtxos.length === 0) {
+    if (existingUnspentUtxos.length === 0) {
         // Scenario 1: Fresh deposit with dummy inputs - add new funds to the system
         extAmount = amount_in_lamports;
         outputAmount = new BN(amount_in_lamports).sub(new BN(fee_amount_in_lamports)).toString();
@@ -147,9 +147,9 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         });
     } else {
         // Scenario 2: Deposit that consolidates with existing UTXO(s)
-        const firstUtxo = mintUtxos[0];
+        const firstUtxo = existingUnspentUtxos[0];
         const firstUtxoAmount = firstUtxo.amount;
-        const secondUtxoAmount = mintUtxos.length > 1 ? mintUtxos[1].amount : new BN(0);
+        const secondUtxoAmount = existingUnspentUtxos.length > 1 ? existingUnspentUtxos[1].amount : new BN(0);
         extAmount = amount_in_lamports; // Still depositing new funds
 
         // Output combines existing UTXO amounts + new deposit amount - fee
@@ -169,7 +169,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
         await firstUtxo.log();
 
         // Use first existing UTXO as first input, and either second UTXO or dummy UTXO as second input
-        const secondUtxo = mintUtxos.length > 1 ? mintUtxos[1] : new Utxo({
+        const secondUtxo = existingUnspentUtxos.length > 1 ? existingUnspentUtxos[1] : new Utxo({
             lightWasm,
             keypair: utxoKeypair,
             amount: '0'
@@ -278,7 +278,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Create the deposit ExtData with real encrypted outputs
     const extData = {
         // recipient - just a placeholder, not actually used for deposits. 
-        recipient: FEE_RECIPIENT,
+        recipient: new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM'),
         extAmount: new BN(extAmount),
         encryptedOutput1: encryptedOutput1,
         encryptedOutput2: encryptedOutput2,
@@ -349,6 +349,7 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Address Lookup Table for transaction size optimization
     logger.debug('Setting up Address Lookup Table...');
 
+    const ALT_ADDRESS = new PublicKey('72bpRay17JKp4k8H87p7ieU9C6aRDy5yCqwvtpTN2wuU');
     const lookupTableAccount = await useExistingALT(connection, ALT_ADDRESS);
 
     if (!lookupTableAccount?.value) {
@@ -367,10 +368,12 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
             { pubkey: nullifier1PDA, isSigner: false, isWritable: true },
             { pubkey: nullifier2PDA, isSigner: false, isWritable: false },
             { pubkey: nullifier3PDA, isSigner: false, isWritable: false },
+            { pubkey: commitment0PDA, isSigner: false, isWritable: true },
+            { pubkey: commitment1PDA, isSigner: false, isWritable: true },
             { pubkey: treeTokenAccount, isSigner: false, isWritable: true },
             { pubkey: globalConfigAccount, isSigner: false, isWritable: false },
             // recipient - just a placeholder, not actually used for deposits. using an ALT address to save bytes
-            { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
+            { pubkey: new PublicKey('AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM'), isSigner: false, isWritable: true },
             // fee recipient
             { pubkey: FEE_RECIPIENT, isSigner: false, isWritable: true },
             // signer
