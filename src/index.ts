@@ -202,7 +202,7 @@ export class PrivacyCash {
         this.isRuning = true
         let utxos = await getUtxosSPL({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage, mintAddress: USDC_MINT })
         this.isRuning = false
-        return getBalanceFromUtxosSPL(utxos[USDC_MINT.toString()] ?? [])
+        return getBalanceFromUtxosSPL(utxos)
     }
 
     /**

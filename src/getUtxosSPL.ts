@@ -44,7 +44,7 @@ export function localstorageKey(key: PublicKey) {
 
 type Utxos = { [k: string]: Utxo[] }
 
-let getMyUtxosPromise: Promise<Utxos> | null = null
+let getMyUtxosPromise: Promise<Utxo[]> | null = null
 let roundStartIndex = 0
 let decryptionTaskFinished = 0;
 /**
@@ -61,7 +61,7 @@ export async function getUtxosSPL({ publicKey, connection, encryptionService, st
     encryptionService: EncryptionService,
     storage: Storage,
     mintAddress: PublicKey
-}): Promise<Utxos> {
+}): Promise<Utxo[]> {
     if (!getMyUtxosPromise) {
         getMyUtxosPromise = (async () => {
             let valid_utxos: Utxo[] = []
@@ -140,16 +140,7 @@ export async function getUtxosSPL({ publicKey, connection, encryptionService, st
             logger.debug(`valid_strings len after set: ${valid_strings.length}`)
             storage.setItem(LSK_ENCRYPTED_OUTPUTS + localstorageKey(publicKey_ata), JSON.stringify(valid_strings))
             // reorgnize
-            let res: Utxos = {}
-            for (let utxo of valid_utxos) {
-                let mint = res[utxo.mintAddress]
-                if (!mint) {
-                    res[utxo.mintAddress] = [utxo]
-                } else {
-                    mint.push(utxo)
-                }
-            }
-            return res
+            return valid_utxos.filter(u => u.mintAddress == mintAddress.toString())
         })()
     }
     return getMyUtxosPromise

@@ -113,8 +113,7 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
 
     // Fetch existing UTXOs for this user
     logger.debug('\nFetching existing UTXOs...');
-    const existingUnspentUtxos = await getUtxosSPL({ connection, publicKey, encryptionService, storage, mintAddress });
-    const mintUtxos = existingUnspentUtxos[mintAddress.toString()] ?? []
+    const mintUtxos = await getUtxosSPL({ connection, publicKey, encryptionService, storage, mintAddress });
 
     logger.debug(`Found ${mintUtxos.length} total UTXOs`);
 

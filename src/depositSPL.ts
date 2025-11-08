@@ -147,9 +147,7 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
 
     // Fetch existing UTXOs for this user
     logger.debug('\nFetching existing UTXOs...');
-    const existingUnspentUtxos = await getUtxosSPL({ connection, publicKey, encryptionService, storage, mintAddress });
-    const mintUtxos = existingUnspentUtxos[mintAddress.toString()] ?? []
-
+    const mintUtxos = await getUtxosSPL({ connection, publicKey, encryptionService, storage, mintAddress });
     // Calculate output amounts and external amount based on scenario
     let extAmount: number;
     let outputAmount: string;
