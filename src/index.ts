@@ -1,7 +1,7 @@
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { deposit } from './deposit.js';
 import { getBalanceFromUtxos, getUtxos, localstorageKey } from './getUtxos.js';
-import { getBalanceFromUtxos as getBalanceFromUtxosSPL, getUtxos as getUtxosSPL } from './getUtxosSPL.js';
+import { getBalanceFromUtxos as getBalanceFromUtxosSPL, getUtxosSPL } from './getUtxosSPL.js';
 
 import { LSK_ENCRYPTED_OUTPUTS, LSK_FETCH_OFFSET, USDC_MINT } from './utils/constants.js';
 import { logger, type LoggerFn, setLogger } from './utils/logger.js';
@@ -200,7 +200,7 @@ export class PrivacyCash {
     async getPrivateBalanceUSDC() {
         logger.info('getting private balance')
         this.isRuning = true
-        let utxos = await getUtxosSPL({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage })
+        let utxos = await getUtxosSPL({ publicKey: this.publicKey, connection: this.connection, encryptionService: this.encryptionService, storage, mintAddress: USDC_MINT })
         this.isRuning = false
         return getBalanceFromUtxosSPL(utxos[USDC_MINT.toString()] ?? [])
     }

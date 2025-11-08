@@ -10,7 +10,7 @@ import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, RELAYER_API_URL, M
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl } from './utils/utils.js';
 
-import { getUtxos, isUtxoSpent } from './getUtxosSPL.js';
+import { getUtxosSPL, isUtxoSpent } from './getUtxosSPL.js';
 import { logger } from './utils/logger.js';
 import { getConfig } from './config.js';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
@@ -113,7 +113,7 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
 
     // Fetch existing UTXOs for this user
     logger.debug('\nFetching existing UTXOs...');
-    const existingUnspentUtxos = await getUtxos({ connection, publicKey, encryptionService, storage });
+    const existingUnspentUtxos = await getUtxosSPL({ connection, publicKey, encryptionService, storage, mintAddress });
     const mintUtxos = existingUnspentUtxos[mintAddress.toString()] ?? []
 
     logger.debug(`Found ${mintUtxos.length} total UTXOs`);
