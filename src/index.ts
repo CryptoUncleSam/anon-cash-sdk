@@ -155,10 +155,10 @@ export class PrivacyCash {
     }
 
     /**
-     * Withdraw SOL from the Privacy Cash.
-     * 
-     * Lamports is the amount of SOL in lamports. e.g. if you want to withdraw 0.01 SOL (10000000 lamports), call withdraw({ lamports: 10000000 })
-     */
+      * Withdraw USDC from the Privacy Cash.
+      * 
+      * base_units is the amount of USDC in base unit. e.g. if you want to withdraw 1 USDC (1,000,000 base unit), call withdraw({ base_units: 1000000, recipientAddress: 'some_address' })
+      */
     async withdrawUSDC({ base_units, recipientAddress }: {
         base_units: number,
         recipientAddress?: string
