@@ -8,7 +8,7 @@ import { MerkleTree } from './utils/merkle_tree.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
 import { Keypair as UtxoKeypair } from './models/keypair.js';
 import { getUtxos, isUtxoSpent } from './getUtxos.js';
-import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID } from './utils/constants.js';
+import { FIELD_SIZE, FEE_RECIPIENT, MERKLE_TREE_DEPTH, RELAYER_API_URL, PROGRAM_ID, ALT_ADDRESS } from './utils/constants.js';
 import { useExistingALT } from './utils/address_lookup_table.js';
 import { logger } from './utils/logger.js';
 
@@ -349,7 +349,6 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Address Lookup Table for transaction size optimization
     logger.debug('Setting up Address Lookup Table...');
 
-    const ALT_ADDRESS = new PublicKey('72bpRay17JKp4k8H87p7ieU9C6aRDy5yCqwvtpTN2wuU');
     const lookupTableAccount = await useExistingALT(connection, ALT_ADDRESS);
 
     if (!lookupTableAccount?.value) {
