@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, AddressLookupTableProgram } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Utxo } from './models/utxo.js';
-import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl, getMintAddressField } from './utils/utils.js';
+import { fetchMerkleProof, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl, getMintAddressField } from './utils/utils.js';
 import { prove, parseProofToBytesArray, parseToBytesArray } from './utils/prover.js';
 import * as hasher from '@lightprotocol/hasher.rs';
 import { MerkleTree } from './utils/merkle_tree.js';

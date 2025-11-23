@@ -13,6 +13,7 @@ import { LocalStorage } from "node-localstorage";
 import path from 'node:path'
 import { depositSPL } from './depositSPL.js';
 import { withdrawSPL } from './withdrawSPL.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 
 let storage = new LocalStorage(path.join(process.cwd(), "cache"));
 
@@ -62,12 +63,22 @@ export class PrivacyCash {
      * 
      * This method clears the cache of utxos.
      */
-    async clearCache() {
+    async clearCache(mintAddresses?: PublicKey[]) {
         if (!this.publicKey) {
             return this
         }
         storage.removeItem(LSK_FETCH_OFFSET + localstorageKey(this.publicKey))
         storage.removeItem(LSK_ENCRYPTED_OUTPUTS + localstorageKey(this.publicKey))
+        // spl
+        if (mintAddresses) {
+            for (let mintAddress of mintAddresses) {
+                let ata = await getAssociatedTokenAddress(
+                    mintAddress,
+                    this.publicKey
+                );
+                storage.removeItem(LSK_FETCH_OFFSET + localstorageKey(ata))
+            }
+        }
         return this
     }
 

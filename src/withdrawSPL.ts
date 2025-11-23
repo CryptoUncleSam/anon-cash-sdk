@@ -8,7 +8,7 @@ import { parseProofToBytesArray, parseToBytesArray, prove } from './utils/prover
 
 import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, RELAYER_API_URL, MERKLE_TREE_DEPTH, PROGRAM_ID } from './utils/constants.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
-import { fetchMerkleProof, findCommitmentPDAs, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl } from './utils/utils.js';
+import { fetchMerkleProof, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl } from './utils/utils.js';
 
 import { getUtxosSPL, isUtxoSpent } from './getUtxosSPL.js';
 import { logger } from './utils/logger.js';
@@ -99,7 +99,7 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
         PROGRAM_ID
     );
 
-    const { globalConfigAccount } = getProgramAccounts()
+    const { globalConfigAccount, treeTokenAccount } = getProgramAccounts()
 
     // Get current tree state
     const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState();
@@ -315,7 +315,6 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     // Find PDAs for nullifiers and commitments
     const { nullifier0PDA, nullifier1PDA } = findNullifierPDAs(proofToSubmit);
     const { nullifier2PDA, nullifier3PDA } = findCrossCheckNullifierPDAs(proofToSubmit);
-    const { commitment0PDA, commitment1PDA } = findCommitmentPDAs(proofToSubmit);
 
     // Serialize the proof and extData
     const serializedProof = serializeProofAndExtData(proofToSubmit, extData, true);
@@ -335,8 +334,6 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
         nullifier1PDA: nullifier1PDA.toString(),
         nullifier2PDA: nullifier2PDA.toString(),
         nullifier3PDA: nullifier3PDA.toString(),
-        commitment0PDA: commitment0PDA.toString(),
-        commitment1PDA: commitment1PDA.toString(),
         treeTokenAccount: treeTokenAccount.toString(),
         globalConfigAccount: globalConfigAccount.toString(),
         recipient: recipient.toString(),
