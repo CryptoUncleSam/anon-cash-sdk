@@ -404,35 +404,13 @@ export async function deposit({ lightWasm, storage, keyBasePath, publicKey, conn
     // Serialize the signed transaction for relay
     const serializedTransaction = Buffer.from(versionedTransaction.serialize()).toString('base64');
 
-    logger.debug('Prepared signed transaction for relay to indexer backend');
-
-    // Relay the pre-signed transaction to indexer backend
-    logger.info('submitting transaction to relayer...')
-    const signature = await relayDepositToIndexer(serializedTransaction, publicKey, referrer);
-    logger.debug('Transaction signature:', signature);
-    logger.debug(`Transaction link: https://explorer.solana.com/tx/${signature}`);
-
-    logger.info('Waiting for transaction confirmation...')
-
-    let retryTimes = 0
-    let itv = 2
-    const encryptedOutputStr = Buffer.from(encryptedOutput1).toString('hex')
-    let start = Date.now()
-    while (true) {
-        logger.debug(`retryTimes: ${retryTimes}`)
-        await new Promise(resolve => setTimeout(resolve, itv * 1000));
-        logger.debug('Fetching updated tree state...');
-        let res = await fetch(RELAYER_API_URL + '/utxos/check/' + encryptedOutputStr)
-        let resJson = await res.json()
-        if (resJson.exists) {
-            logger.debug(`Top up successfully in ${((Date.now() - start) / 1000).toFixed(2)} seconds!`);
-            return { tx: signature }
-        }
-        if (retryTimes >= 10) {
-            throw new Error('Refresh the page to see latest balance.')
-        }
-        retryTimes++
-    }
+    // Transaction is prepared and signed by the transactionSigner
+    // Frontend will handle submission - no need to relay to indexer or wait for confirmation
+    logger.debug('Transaction prepared. Frontend will handle signing and submission.');
+    
+    // Return early with a mock signature - the transaction is already captured by the transactionSigner
+    // The frontend will submit it and get the real signature
+    return { tx: 'frontend-handled' };
 
 }
 
