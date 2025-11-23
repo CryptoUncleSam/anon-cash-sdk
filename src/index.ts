@@ -77,6 +77,7 @@ export class PrivacyCash {
                     this.publicKey
                 );
                 storage.removeItem(LSK_FETCH_OFFSET + localstorageKey(ata))
+                storage.removeItem(LSK_ENCRYPTED_OUTPUTS + localstorageKey(ata))
             }
         }
         return this
