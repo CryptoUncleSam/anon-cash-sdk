@@ -93,7 +93,13 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
 
     logger.debug(`Deployer wallet: ${DEPLOYER_ID.toString()}`);
 
-    const { treeAccount, treeTokenAccount, globalConfigAccount } = getProgramAccounts()
+    // Derive tree account PDA with mint address for SPL (different from SOL version)
+    const [treeAccount] = PublicKey.findProgramAddressSync(
+        [Buffer.from('merkle_tree'), mintAddress.toBuffer()],
+        PROGRAM_ID
+    );
+
+    const { globalConfigAccount } = getProgramAccounts()
 
     // Get current tree state
     const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState();
