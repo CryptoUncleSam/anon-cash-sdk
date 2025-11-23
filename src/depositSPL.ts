@@ -126,7 +126,13 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         throw new Error(`Need at least 0.01 SOL for Solana fees.`);
     }
 
-    const { treeAccount, treeTokenAccount, globalConfigAccount } = getProgramAccounts()
+    // Derive tree account PDA with mint address for SPL (different from SOL version)
+    const [treeAccount] = PublicKey.findProgramAddressSync(
+        [Buffer.from('merkle_tree'), mintAddress.toBuffer()],
+        PROGRAM_ID
+    );
+
+    const { globalConfigAccount } = getProgramAccounts()
 
     // Create the merkle tree with the pre-initialized poseidon hash
     const tree = new MerkleTree(MERKLE_TREE_DEPTH, lightWasm);
