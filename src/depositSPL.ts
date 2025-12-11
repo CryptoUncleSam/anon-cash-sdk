@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, AddressLookupTableProgram } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Utxo } from './models/utxo.js';
-import { fetchMerkleProof, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl, getMintAddressField, getTokenNameFromMint } from './utils/utils.js';
+import { fetchMerkleProof, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHash, getMintAddressField, getTokenNameFromMint } from './utils/utils.js';
 import { prove, parseProofToBytesArray, parseToBytesArray } from './utils/prover.js';
 import * as hasher from '@lightprotocol/hasher.rs';
 import { MerkleTree } from './utils/merkle_tree.js';
@@ -341,7 +341,7 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
         mintAddress: mintAddress.toString()
     };
     // Calculate the extDataHash with the encrypted outputs (now includes mintAddress for security)
-    const calculatedExtDataHash = getExtDataHashForSpl(extData);
+    const calculatedExtDataHash = getExtDataHash(extData);
 
     // Create the input for the proof generation (must match circuit input order exactly)
     const input = {
