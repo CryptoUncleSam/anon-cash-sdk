@@ -328,14 +328,15 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     logger.debug('Commitment matches:', outputCommitments[0] === decryptedCommitment1);
 
     // Create the deposit ExtData with real encrypted outputs
+    // Note: For extDataHash calculation, use base addresses (not ATAs) to match what the program expects
     const extData = {
-        // recipient - just a placeholder, not actually used for deposits. 
-        recipient: recipient_ata,
+        // recipient - just a placeholder, not actually used for deposits. Use base address, not ATA
+        recipient: recipient,
         extAmount: new BN(extAmount),
         encryptedOutput1: encryptedOutput1,
         encryptedOutput2: encryptedOutput2,
         fee: new BN(fee_base_units),
-        feeRecipient: feeRecipientTokenAccount,
+        feeRecipient: FEE_RECIPIENT, // Use base fee recipient address, not ATA
         mintAddress: mintAddress.toString()
     };
     // Calculate the extDataHash with the encrypted outputs (now includes mintAddress for security)
