@@ -352,28 +352,14 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     logger.debug('Prepared withdraw parameters for indexer backend');
 
     // Submit to indexer backend instead of directly to Solana
+    // Submit to indexer backend - this will be intercepted by our backend to capture params
+    // The actual submission will happen via our relayer
     logger.info('submitting transaction to relayer...')
     const signature = await submitWithdrawToIndexer(withdrawParams);
-    // Wait a moment for the transaction to be confirmed
-    logger.info('waiting for transaction confirmation...')
-    let retryTimes = 0
-    let itv = 2
-    const encryptedOutputStr = Buffer.from(encryptedOutput1).toString('hex')
-    let start = Date.now()
-    while (true) {
-        console.log(`retryTimes: ${retryTimes}`)
-        await new Promise(resolve => setTimeout(resolve, itv * 1000));
-        console.log('Fetching updated tree state...');
-        let res = await fetch(RELAYER_API_URL + '/utxos/check/' + encryptedOutputStr)
-        let resJson = await res.json()
-        console.log('resJson:', resJson)
-        if (resJson.exists) {
-            return { isPartial, tx: signature, recipient: recipient.toString(), base_units, fee_base_units }
-        }
-        if (retryTimes >= 10) {
-            throw new Error('Refresh the page to see latest balance.')
-        }
-        retryTimes++
-    }
+    
+    // Skip confirmation polling - transaction will be submitted by backend relayer
+    // Return immediately with the signature (which will be 'mock' from our interceptor)
+    logger.debug('Withdraw parameters prepared. Backend relayer will handle submission.');
+    return { isPartial, tx: signature, recipient: recipient.toString(), base_units, fee_base_units };
 
 }
