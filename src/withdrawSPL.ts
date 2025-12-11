@@ -251,15 +251,16 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     logger.debug('Commitment matches:', outputCommitments[0] === decryptedCommitment1);
 
     // Create the withdrawal ExtData with real encrypted outputs
-    // Note: For extDataHash calculation, use base addresses (not ATAs) to match what the program expects
+    // Note: For extDataHash calculation, use ATAs (not base addresses) to match what the program expects
+    // The program's from_minified_spl uses recipient_token_account.key() and fee_recipient_ata.key()
     const extData = {
-        // Use base recipient address for hash calculation (program will use the ATA from instruction accounts)
-        recipient: recipient,
+        // Use ATA to match program's from_minified_spl which uses recipient_token_account.key()
+        recipient: recipient_ata,
         extAmount: new BN(extAmount),
         encryptedOutput1: encryptedOutput1,
         encryptedOutput2: encryptedOutput2,
         fee: new BN(fee_base_units),
-        feeRecipient: FEE_RECIPIENT, // Use base fee recipient address, not ATA
+        feeRecipient: feeRecipientTokenAccount, // Use ATA to match program
         mintAddress: mintAddress.toString()
     };
     // Calculate the extDataHash with the encrypted outputs
