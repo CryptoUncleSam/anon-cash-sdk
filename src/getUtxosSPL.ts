@@ -92,7 +92,7 @@ export async function getUtxosSPL({ publicKey, connection, encryptionService, st
                     if (tokenName) {
                         fetch_utxo_url += `&token=${tokenName}`
                     }
-                    let fetched = await fetchUserUtxos({ publicKey, connection, url: fetch_utxo_url, encryptionService, storage, publicKey_ata })
+                    let fetched = await fetchUserUtxos({ publicKey, connection, url: fetch_utxo_url, encryptionService, storage, publicKey_ata, tokenName })
                     let am = 0
 
                     const nonZeroUtxos: Utxo[] = [];
@@ -153,13 +153,14 @@ export async function getUtxosSPL({ publicKey, connection, encryptionService, st
     return getMyUtxosPromise
 }
 
-async function fetchUserUtxos({ publicKey, connection, url, storage, encryptionService, publicKey_ata }: {
+async function fetchUserUtxos({ publicKey, connection, url, storage, encryptionService, publicKey_ata, tokenName }: {
     publicKey: PublicKey,
     connection: Connection,
     url: string,
     encryptionService: EncryptionService,
     storage: Storage,
-    publicKey_ata: PublicKey
+    publicKey_ata: PublicKey,
+    tokenName?: string
 }): Promise<{
     encryptedOutputs: string[],
     utxos: Utxo[],
@@ -211,7 +212,7 @@ async function fetchUserUtxos({ publicKey, connection, url, storage, encryptionS
 
 
     let decryptionTaskTotal = data.total + cachedStringNum - roundStartIndex;
-    let batchRes = await decrypt_outputs(encryptedOutputs, encryptionService, utxoKeypair, lightWasm)
+    let batchRes = await decrypt_outputs(encryptedOutputs, encryptionService, utxoKeypair, lightWasm, tokenName)
     decryptionTaskFinished += encryptedOutputs.length
     logger.debug('batchReslen', batchRes.length)
     for (let i = 0; i < batchRes.length; i++) {
@@ -229,7 +230,7 @@ async function fetchUserUtxos({ publicKey, connection, url, storage, encryptionS
             if (decryptionTaskFinished % 100 == 0) {
                 logger.info(`(decrypting cached utxo: ${decryptionTaskFinished + 1}/${decryptionTaskTotal}...)`)
             }
-            let batchRes = await decrypt_outputs(cachedEncryptedOutputs, encryptionService, utxoKeypair, lightWasm)
+            let batchRes = await decrypt_outputs(cachedEncryptedOutputs, encryptionService, utxoKeypair, lightWasm, tokenName)
             decryptionTaskFinished += cachedEncryptedOutputs.length
             logger.debug('cachedbatchReslen', batchRes.length, ' source', cachedEncryptedOutputs.length)
             for (let i = 0; i < batchRes.length; i++) {
@@ -255,13 +256,27 @@ export async function isUtxoSpent(connection: Connection, utxo: Utxo): Promise<b
     try {
         // Get the nullifier for this UTXO
         const nullifier = await utxo.getNullifier();
+        
+        // Validate nullifier
+        if (!nullifier || typeof nullifier !== 'string') {
+            logger.debug(`Invalid nullifier for UTXO, treating as unspent`);
+            return false;
+        }
+        
         logger.debug(`Checking if UTXO with nullifier ${nullifier} is spent`);
 
         // Convert decimal nullifier string to byte array (same format as in proofs)
         // This matches how commitments are handled and how the Rust code expects the seeds
-        const nullifierBytes = Array.from(
-            leInt2Buff(unstringifyBigInts(nullifier), 32)
-        ).reverse() as number[];
+        let nullifierBytes: number[];
+        try {
+            const unstringified = unstringifyBigInts(nullifier);
+            nullifierBytes = Array.from(
+                leInt2Buff(unstringified, 32)
+            ).reverse() as number[];
+        } catch (parseError: any) {
+            logger.debug(`Error parsing nullifier ${nullifier}: ${parseError.message}, treating as unspent`);
+            return false;
+        }
 
         // Try nullifier0 seed
         const [nullifier0PDA] = PublicKey.findProgramAddressSync(
@@ -302,14 +317,37 @@ async function areUtxosSpent(
 ): Promise<boolean[]> {
     try {
         const allPDAs: { utxoIndex: number; pda: PublicKey }[] = [];
+        const spentFlags = new Array(utxos.length).fill(false);
 
         for (let i = 0; i < utxos.length; i++) {
             const utxo = utxos[i];
-            const nullifier = await utxo.getNullifier();
+            let nullifier: string;
+            try {
+                nullifier = await utxo.getNullifier();
+            } catch (error: any) {
+                logger.debug(`Error getting nullifier for UTXO ${i}: ${error.message}, treating as unspent`);
+                // Already false in spentFlags, continue to next UTXO
+                continue;
+            }
 
-            const nullifierBytes = Array.from(
-                leInt2Buff(unstringifyBigInts(nullifier), 32)
-            ).reverse() as number[];
+            // Validate nullifier
+            if (!nullifier || typeof nullifier !== 'string') {
+                logger.debug(`Invalid nullifier for UTXO ${i}, treating as unspent`);
+                // Already false in spentFlags, continue to next UTXO
+                continue;
+            }
+
+            let nullifierBytes: number[];
+            try {
+                const unstringified = unstringifyBigInts(nullifier);
+                nullifierBytes = Array.from(
+                    leInt2Buff(unstringified, 32)
+                ).reverse() as number[];
+            } catch (parseError: any) {
+                logger.debug(`Error parsing nullifier for UTXO ${i}: ${parseError.message}, treating as unspent`);
+                // Already false in spentFlags, continue to next UTXO
+                continue;
+            }
 
             const [nullifier0PDA] = PublicKey.findProgramAddressSync(
                 [Buffer.from("nullifier0"), Buffer.from(nullifierBytes)],
@@ -324,10 +362,14 @@ async function areUtxosSpent(
             allPDAs.push({ utxoIndex: i, pda: nullifier1PDA });
         }
 
+        if (allPDAs.length === 0) {
+            // No valid PDAs to check, all UTXOs are treated as unspent
+            return spentFlags;
+        }
+
         const results: any[] =
             await connection.getMultipleAccountsInfo(allPDAs.map((x) => x.pda));
 
-        const spentFlags = new Array(utxos.length).fill(false);
         for (let i = 0; i < allPDAs.length; i++) {
             if (results[i] !== null) {
                 spentFlags[allPDAs[i].utxoIndex] = true;
@@ -453,6 +495,7 @@ async function decrypt_outputs(
     encryptionService: EncryptionService,
     utxoKeypair: UtxoKeypair,
     lightWasm: any,
+    tokenName?: string
 ): Promise<DecryptRes[]> {
     let results: DecryptRes[] = [];
 
@@ -482,9 +525,13 @@ async function decrypt_outputs(
         let encrypted_outputs = results.map(r => r.encryptedOutput)
 
         let url = RELAYER_API_URL + `/utxos/indices`
+        let body: any = { encrypted_outputs }
+        if (tokenName) {
+            body.token = tokenName
+        }
         let res = await fetch(url, {
             method: 'POST', headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ encrypted_outputs })
+            body: JSON.stringify(body)
         })
         let j = await res.json()
         if (!j.indices || !Array.isArray(j.indices) || j.indices.length != encrypted_outputs.length) {
