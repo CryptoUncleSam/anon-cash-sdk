@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey, TransactionInstruction, SystemProgram, ComputeBudgetProgram, VersionedTransaction, TransactionMessage, AddressLookupTableProgram } from '@solana/web3.js';
 import BN from 'bn.js';
 import { Utxo } from './models/utxo.js';
-import { fetchMerkleProof, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl, getMintAddressField } from './utils/utils.js';
+import { fetchMerkleProof, findNullifierPDAs, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getExtDataHashForSpl, getMintAddressField, getTokenNameFromMint } from './utils/utils.js';
 import { prove, parseProofToBytesArray, parseToBytesArray } from './utils/prover.js';
 import * as hasher from '@lightprotocol/hasher.rs';
 import { MerkleTree } from './utils/merkle_tree.js';
@@ -138,7 +138,9 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     const tree = new MerkleTree(MERKLE_TREE_DEPTH, lightWasm);
 
     // Initialize root and nextIndex variables
-    const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState();
+    // For SPL, pass token name to API to get the correct tree root
+    const tokenName = getTokenNameFromMint(mintAddress);
+    const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState(tokenName);
 
     logger.debug(`Using tree root: ${root}`);
     logger.debug(`New UTXOs will be inserted at indices: ${currentNextIndex} and ${currentNextIndex + 1}`);

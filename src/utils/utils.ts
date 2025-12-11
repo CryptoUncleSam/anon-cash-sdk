@@ -10,9 +10,29 @@ import { Utxo } from '../models/utxo.js';
 import * as borsh from 'borsh';
 import { sha256 } from '@ethersproject/sha2';
 import { PublicKey } from '@solana/web3.js';
-import { RELAYER_API_URL, PROGRAM_ID } from './constants.js';
+import { RELAYER_API_URL, PROGRAM_ID, USDC_MINT } from './constants.js';
 import { logger } from './logger.js';
 import { getConfig } from '../config.js';
+
+/**
+ * Map mint address to token name for API queries
+ */
+export function getTokenNameFromMint(mintAddress: PublicKey | string): string | undefined {
+  const mintStr = mintAddress instanceof PublicKey ? mintAddress.toString() : mintAddress;
+  
+  // Known token mappings
+  if (mintStr === USDC_MINT.toString()) {
+    return 'USDC';
+  }
+  // USDT mint address
+  if (mintStr === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
+    return 'USDT';
+  }
+  
+  // For SOL, return undefined (no token parameter)
+  // For unknown tokens, return undefined and let API handle it
+  return undefined;
+}
 
 /**
  * Calculate deposit fee based on deposit amount and fee rate
@@ -147,10 +167,14 @@ export function findNullifierPDAs(proof: any) {
 }
 
 // Function to query remote tree state from indexer API
-export async function queryRemoteTreeState(): Promise<{ root: string, nextIndex: number }> {
+export async function queryRemoteTreeState(tokenName?: string): Promise<{ root: string, nextIndex: number }> {
   try {
     logger.debug('Fetching Merkle root and nextIndex from API...');
-    const response = await fetch(`${RELAYER_API_URL}/merkle/root`);
+    let url = `${RELAYER_API_URL}/merkle/root`
+    if (tokenName) {
+      url += '?token=' + tokenName
+    }
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch Merkle root and nextIndex: ${response.status} ${response.statusText}`);
     }

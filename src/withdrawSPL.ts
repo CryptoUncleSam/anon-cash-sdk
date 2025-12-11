@@ -8,7 +8,7 @@ import { parseProofToBytesArray, parseToBytesArray, prove } from './utils/prover
 
 import { ALT_ADDRESS, DEPLOYER_ID, FEE_RECIPIENT, FIELD_SIZE, RELAYER_API_URL, MERKLE_TREE_DEPTH, PROGRAM_ID } from './utils/constants.js';
 import { EncryptionService, serializeProofAndExtData } from './utils/encryption.js';
-import { fetchMerkleProof, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl } from './utils/utils.js';
+import { fetchMerkleProof, findNullifierPDAs, getExtDataHash, getProgramAccounts, queryRemoteTreeState, findCrossCheckNullifierPDAs, getMintAddressField, getExtDataHashForSpl, getTokenNameFromMint } from './utils/utils.js';
 
 import { getUtxosSPL, isUtxoSpent } from './getUtxosSPL.js';
 import { logger } from './utils/logger.js';
@@ -102,7 +102,9 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
     const { globalConfigAccount, treeTokenAccount } = getProgramAccounts()
 
     // Get current tree state
-    const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState();
+    // For SPL, pass token name to API to get the correct tree root
+    const tokenName = getTokenNameFromMint(mintAddress);
+    const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState(tokenName);
     logger.debug(`Using tree root: ${root}`);
     logger.debug(`New UTXOs will be inserted at indices: ${currentNextIndex} and ${currentNextIndex + 1}`);
 
