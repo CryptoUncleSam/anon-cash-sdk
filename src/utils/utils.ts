@@ -136,10 +136,14 @@ export function getExtDataHash(extData: {
 
 
 // Function to fetch Merkle proof from API for a given commitment
-export async function fetchMerkleProof(commitment: string): Promise<{ pathElements: string[], pathIndices: number[] }> {
+export async function fetchMerkleProof(commitment: string, tokenName?: string): Promise<{ pathElements: string[], pathIndices: number[] }> {
   try {
     logger.debug(`Fetching Merkle proof for commitment: ${commitment}`);
-    const response = await fetch(`${RELAYER_API_URL}/merkle/proof/${commitment}`);
+    let url = `${RELAYER_API_URL}/merkle/proof/${commitment}`;
+    if (tokenName) {
+      url += `?token=${tokenName}`;
+    }
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch Merkle proof: ${response.status} ${response.statusText}`);
     }

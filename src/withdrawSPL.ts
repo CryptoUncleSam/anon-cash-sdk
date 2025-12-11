@@ -175,7 +175,8 @@ export async function withdrawSPL({ recipient, lightWasm, storage, publicKey, co
             }
             // For real UTXOs, fetch the proof from API
             const commitment = await utxo.getCommitment();
-            return fetchMerkleProof(commitment);
+            const tokenName = getTokenNameFromMint(mintAddress);
+            return fetchMerkleProof(commitment, tokenName);
         })
     );
 

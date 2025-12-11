@@ -232,13 +232,14 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
 
         // Fetch Merkle proofs for real UTXOs
         const firstUtxoCommitment = await firstUtxo.getCommitment();
-        const firstUtxoMerkleProof = await fetchMerkleProof(firstUtxoCommitment);
+        const tokenName = getTokenNameFromMint(mintAddress);
+        const firstUtxoMerkleProof = await fetchMerkleProof(firstUtxoCommitment, tokenName);
 
         let secondUtxoMerkleProof;
         if (secondUtxo.amount.gt(new BN(0))) {
             // Second UTXO is real, fetch its proof
             const secondUtxoCommitment = await secondUtxo.getCommitment();
-            secondUtxoMerkleProof = await fetchMerkleProof(secondUtxoCommitment);
+            secondUtxoMerkleProof = await fetchMerkleProof(secondUtxoCommitment, tokenName);
             logger.debug('\nSecond UTXO to be consolidated:');
             await secondUtxo.log();
         }
