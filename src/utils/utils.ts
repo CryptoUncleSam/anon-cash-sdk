@@ -9,24 +9,25 @@ import BN from 'bn.js';
 import { Utxo } from '../models/utxo.js';
 import * as borsh from 'borsh';
 import { sha256 } from '@ethersproject/sha2';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Connection } from '@solana/web3.js';
 import { RELAYER_API_URL, PROGRAM_ID, USDC_MINT } from './constants.js';
 import { logger } from './logger.js';
 import { getConfig } from '../config.js';
 
 /**
  * Map mint address to token name for API queries
+ * Returns lowercase token name as the API expects lowercase (e.g., "usdc" not "USDC")
  */
 export function getTokenNameFromMint(mintAddress: PublicKey | string): string | undefined {
   const mintStr = mintAddress instanceof PublicKey ? mintAddress.toString() : mintAddress;
   
-  // Known token mappings
+  // Known token mappings - API expects lowercase
   if (mintStr === USDC_MINT.toString()) {
-    return 'USDC';
+    return 'usdc';
   }
   // USDT mint address
   if (mintStr === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
-    return 'USDT';
+    return 'usdt';
   }
   
   // For SOL, return undefined (no token parameter)
@@ -167,14 +168,52 @@ export function findNullifierPDAs(proof: any) {
 }
 
 // Function to query remote tree state from indexer API
-export async function queryRemoteTreeState(tokenName?: string): Promise<{ root: string, nextIndex: number }> {
+export async function queryRemoteTreeState(tokenName?: string, treeAccount?: PublicKey, connection?: any): Promise<{ root: string, nextIndex: number }> {
   try {
-    logger.debug('Fetching Merkle root and nextIndex from API...');
-    let url = `${RELAYER_API_URL}/merkle/root`
+    // If tokenName is provided, try API first, but fall back to on-chain if API returns empty
     if (tokenName) {
-      url += '?token=' + tokenName
+      logger.debug(`Fetching Merkle root and nextIndex from API for token: ${tokenName}...`);
+      let url = `${RELAYER_API_URL}/merkle/root?token=${tokenName}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json() as { root: string, nextIndex: number };
+        // If API returns valid data, use it
+        if (data.root && data.root !== '' && data.nextIndex !== undefined) {
+          logger.debug(`Fetched root from API: ${data.root}`);
+          logger.debug(`Fetched nextIndex from API: ${data.nextIndex}`);
+          return data;
+        }
+        // If API returns empty, fall back to on-chain query if treeAccount and connection are provided
+        logger.debug(`API returned empty root for ${tokenName}, falling back to on-chain query...`);
+      }
     }
-    const response = await fetch(url);
+    
+    // Fall back to on-chain query if treeAccount and connection are provided (for SPL tokens)
+    if (treeAccount && connection) {
+      logger.debug('Fetching Merkle root and nextIndex from on-chain tree account...');
+      const accountInfo = await connection.getAccountInfo(treeAccount);
+      if (!accountInfo) {
+        throw new Error(`Tree account not found: ${treeAccount.toString()}`);
+      }
+      
+      // Parse tree account data
+      // Structure: 8-40: authority, 40-48: nextIndex, 4112-4120: rootIndex, 4120-4128: maxDepositAmount, 4128: bump, 4129+: roots array
+      const nextIndex = new BN(accountInfo.data.slice(40, 48), 'le');
+      const rootIndex = new BN(accountInfo.data.slice(4112, 4120), 'le');
+      
+      // Read the root from the roots array (each root is 32 bytes)
+      const rootOffset = 4129 + (rootIndex.toNumber() * 32);
+      const rootBytes = accountInfo.data.slice(rootOffset, rootOffset + 32);
+      const root = new BN(rootBytes, 'le').toString();
+      
+      logger.debug(`Fetched root from on-chain: ${root}`);
+      logger.debug(`Fetched nextIndex from on-chain: ${nextIndex.toString()}`);
+      return { root, nextIndex: nextIndex.toNumber() };
+    }
+    
+    // Default: fetch SOL tree from API
+    logger.debug('Fetching Merkle root and nextIndex from API (SOL tree)...');
+    const response = await fetch(`${RELAYER_API_URL}/merkle/root`);
     if (!response.ok) {
       throw new Error(`Failed to fetch Merkle root and nextIndex: ${response.status} ${response.statusText}`);
     }
@@ -183,7 +222,7 @@ export async function queryRemoteTreeState(tokenName?: string): Promise<{ root: 
     logger.debug(`Fetched nextIndex from API: ${data.nextIndex}`);
     return data;
   } catch (error) {
-    console.error('Failed to fetch root and nextIndex from API:', error);
+    console.error('Failed to fetch root and nextIndex:', error);
     throw error;
   }
 }

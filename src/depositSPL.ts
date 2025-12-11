@@ -138,9 +138,9 @@ export async function depositSPL({ lightWasm, storage, keyBasePath, publicKey, c
     const tree = new MerkleTree(MERKLE_TREE_DEPTH, lightWasm);
 
     // Initialize root and nextIndex variables
-    // For SPL, pass token name to API to get the correct tree root
+    // For SPL, try API first with token name, but fall back to on-chain query if API doesn't support it
     const tokenName = getTokenNameFromMint(mintAddress);
-    const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState(tokenName);
+    const { root, nextIndex: currentNextIndex } = await queryRemoteTreeState(tokenName, treeAccount, connection);
 
     logger.debug(`Using tree root: ${root}`);
     logger.debug(`New UTXOs will be inserted at indices: ${currentNextIndex} and ${currentNextIndex + 1}`);
