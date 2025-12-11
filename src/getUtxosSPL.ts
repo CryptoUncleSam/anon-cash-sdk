@@ -9,6 +9,7 @@ import * as ffjavascript from 'ffjavascript';
 import { FETCH_UTXOS_GROUP_SIZE, RELAYER_API_URL, LSK_ENCRYPTED_OUTPUTS, LSK_FETCH_OFFSET, PROGRAM_ID } from './utils/constants.js';
 import { logger } from './utils/logger.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { getTokenNameFromMint } from './utils/utils.js';
 
 // Use type assertion for the utility functions (same pattern as in get_verification_keys.ts)
 const utils = ffjavascript.utils as any;
@@ -80,11 +81,17 @@ export async function getUtxosSPL({ publicKey, connection, encryptionService, st
                     roundStartIndex = 0
                 }
                 decryptionTaskFinished = 0
+                // Get token name for API query parameter
+                const tokenName = getTokenNameFromMint(mintAddress)
                 while (true) {
                     let offsetStr = storage.getItem(LSK_FETCH_OFFSET + localstorageKey(publicKey_ata))
                     let fetch_utxo_offset = offsetStr ? Number(offsetStr) : 0
                     let fetch_utxo_end = fetch_utxo_offset + FETCH_UTXOS_GROUP_SIZE
+                    // Add token parameter if it's an SPL token (not SOL)
                     let fetch_utxo_url = `${RELAYER_API_URL}/utxos/range?start=${fetch_utxo_offset}&end=${fetch_utxo_end}`
+                    if (tokenName) {
+                        fetch_utxo_url += `&token=${tokenName}`
+                    }
                     let fetched = await fetchUserUtxos({ publicKey, connection, url: fetch_utxo_url, encryptionService, storage, publicKey_ata })
                     let am = 0
 
